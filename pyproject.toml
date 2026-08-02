@@ -1,0 +1,107 @@
+[project]
+name = "full-stack-data-science"
+version = "0.1.0"
+description = "A complete, hands-on Data Science course in Python — from language foundations to production MLOps."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+
+# ---------------------------------------------------------------------------
+# Core stack — installed by default. Covers Modules 01-15.
+# Versions are pinned with `>=` floors so the course stays reproducible while
+# still allowing patch upgrades.
+# ---------------------------------------------------------------------------
+dependencies = [
+    # Numerical & tabular computing
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "pyarrow>=16.0",          # Parquet / Arrow columnar I/O
+    "scipy>=1.13",
+    # Statistics
+    "statsmodels>=0.14",
+    # Machine learning
+    "scikit-learn>=1.5",
+    # Visualization
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "plotly>=5.22",
+    # Notebook environment
+    "jupyterlab>=4.2",
+    "notebook>=7.2",
+    "ipykernel>=6.29",
+    "ipywidgets>=8.1",
+    "jupytext>=1.16",         # Notebooks <-> plain-text .py round-tripping
+    "nbconvert>=7.16",
+]
+
+[project.optional-dependencies]
+# Modules 16-18 — Deep Learning, NLP, Computer Vision
+deep-learning = [
+    "torch>=2.3",
+    "torchvision>=0.18",
+    "transformers>=4.42",
+    "datasets>=2.20",
+    "pillow>=10.3",
+]
+
+# Module 19 — Distributed / Big Data
+big-data = [
+    "pyspark>=3.5",
+    "dask[complete]>=2024.5",
+    "duckdb>=1.0",
+]
+
+# Modules 08, 21-23 — Databases, MLOps, Serving
+mlops = [
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "mlflow>=2.14",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "pydantic>=2.7",
+    "shap>=0.45",
+    "evidently>=0.4",
+]
+
+# Modules 14-15 — Boosting & Forecasting
+advanced-ml = [
+    "xgboost>=2.0",
+    "lightgbm>=4.4",
+    "catboost>=1.2",
+    "optuna>=3.6",
+    "imbalanced-learn>=0.12",
+    "prophet>=1.1",
+]
+
+# Course authoring / quality tooling
+dev = [
+    "pytest>=8.2",
+    "black>=24.4",
+    "ruff>=0.5",
+]
+
+# ---------------------------------------------------------------------------
+# Tooling configuration
+# ---------------------------------------------------------------------------
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]   # pycodestyle, pyflakes, isort, pyupgrade, bugbear
+ignore = ["E501"]                      # line length is handled by black
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+# Keep notebooks paired with plain-text .py files so diffs stay reviewable.
+[tool.jupytext]
+formats = "ipynb,py:percent"
