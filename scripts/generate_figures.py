@@ -783,6 +783,313 @@ def fig_exception_hierarchy() -> None:
     save(fig, "exception_hierarchy.png")
 
 
+# ===========================================================================
+# MODULE 02 — NumPy & Numerical Computing
+# ===========================================================================
+
+
+def fig_numpy_memory_layout() -> None:
+    """Why a Python list of numbers is slow: pointers versus a packed buffer."""
+    fig, ax = blank_axes((12, 5.6), xlim=(0, 12), ylim=(0, 5.6))
+
+    # ---------------- LEFT: Python list -----------------------------------
+    ax.text(3.0, 5.25, "Python  list", ha="center", fontsize=12.5,
+            fontweight="bold", color=COLORS["danger"], family="monospace")
+    ax.text(3.0, 4.86, "an array of POINTERS to scattered objects",
+            ha="center", fontsize=8.5, color=COLORS["muted"], style="italic")
+
+    # The pointer array itself.
+    for i in range(4):
+        x = 0.72 + i * 1.14
+        rounded_box(ax, (x, 3.85), 1.02, 0.62, "ptr",
+                    edgecolor=COLORS["danger"], fontsize=8.5,
+                    textcolor=COLORS["danger"])
+
+    # The heap objects the pointers reach, deliberately at uneven heights to
+    # convey that they are scattered rather than adjacent.
+    # Box width (1.02) must stay below the 1.14 column pitch, otherwise
+    # neighbours collide whenever their y ranges happen to overlap.
+    heap_y = [2.30, 1.50, 2.55, 1.24]
+    for i, (value, y) in enumerate(zip([10, 11, 12, 13], heap_y, strict=True)):
+        x = 0.72 + i * 1.14
+        rounded_box(ax, (x, y), 1.02, 0.72, f"PyObject\n{value}",
+                    facecolor=COLORS["danger"] + "10",
+                    edgecolor=COLORS["danger"], fontsize=7.4,
+                    textcolor=COLORS["text"])
+        arrow(ax, (x + 0.51, 3.82), (x + 0.51, y + 0.76),
+              color=COLORS["danger"], linewidth=1.2)
+
+    ax.text(3.0, 0.86, "≈ 8 bytes per pointer  +  ≈ 28 bytes per int object",
+            ha="center", fontsize=8.5, color=COLORS["danger"], fontweight="bold")
+    ax.text(3.0, 0.46,
+            "every element costs a pointer hop; types are checked one by one",
+            ha="center", fontsize=8, color=COLORS["muted"])
+
+    # ---------------- RIGHT: ndarray --------------------------------------
+    ax.text(9.0, 5.25, "NumPy  ndarray", ha="center", fontsize=12.5,
+            fontweight="bold", color=COLORS["teal"], family="monospace")
+    ax.text(9.0, 4.86, "ONE contiguous, typed block of memory",
+            ha="center", fontsize=8.5, color=COLORS["muted"], style="italic")
+
+    # A small header block, then the packed data buffer.
+    rounded_box(ax, (6.35, 3.85), 1.5, 0.62, "header\nshape, dtype",
+                edgecolor=COLORS["teal"], fontsize=7,
+                textcolor=COLORS["muted"])
+
+    for i, value in enumerate([10, 11, 12, 13]):
+        # No gaps between cells: adjacency is the whole point of the figure.
+        x = 8.05 + i * 0.92
+        rounded_box(ax, (x, 3.85), 0.92, 0.62, str(value),
+                    facecolor=COLORS["teal"] + "18",
+                    edgecolor=COLORS["teal"], fontsize=10,
+                    fontweight="bold", textcolor=COLORS["text"])
+
+    # Brace-like span marker under the buffer.
+    ax.plot([8.05, 11.73], [3.55, 3.55], color=COLORS["teal"], linewidth=1.4)
+    for x in (8.05, 11.73):
+        ax.plot([x, x], [3.55, 3.70], color=COLORS["teal"], linewidth=1.4)
+    ax.text(9.89, 3.24, "4 × 8 bytes, back to back",
+            ha="center", fontsize=8, color=COLORS["teal"])
+
+    ax.text(9.0, 0.86, "= 8 bytes per element,  nothing else",
+            ha="center", fontsize=8.5, color=COLORS["teal"], fontweight="bold")
+    ax.text(9.0, 0.46,
+            "one dtype for the whole block → the CPU can vectorise the loop",
+            ha="center", fontsize=8, color=COLORS["muted"])
+
+    ax.plot([6.0, 6.0], [0.3, 5.4], color="#DDDDDD", linewidth=1.2, zorder=1)
+
+    ax.set_title("Why NumPy Is Faster: It Is About Memory Layout",
+                 fontsize=14, fontweight="bold", loc="center", pad=14)
+    save(fig, "numpy_memory_layout.png")
+
+
+def fig_broadcasting_rules() -> None:
+    """The right-align-and-stretch rule, worked through three shape pairs."""
+    fig, ax = blank_axes((11.5, 6.4), xlim=(0, 11.5), ylim=(0, 6.4))
+
+    ax.text(5.75, 6.0,
+            "Align shapes from the RIGHT.  A dimension is compatible when it "
+            "matches — or is 1.",
+            ha="center", fontsize=10, color=COLORS["text"])
+
+    # (label, shape A, shape B, result or None when incompatible)
+    cases = [
+        ("(3, 4)  +  (4,)", ["3", "4"], ["1*", "4"], ["3", "4"], True),
+        ("(3, 1)  +  (1, 4)", ["3", "1"], ["1", "4"], ["3", "4"], True),
+        ("(3, 4)  +  (3,)", ["3", "4"], ["1*", "3"], None, False),
+    ]
+
+    y = 4.55
+    for label, shape_a, shape_b, result, ok in cases:
+        color = COLORS["teal"] if ok else COLORS["danger"]
+
+        ax.text(0.25, y + 0.30, label, fontsize=10.5, fontweight="bold",
+                family="monospace", color=COLORS["text"], va="center")
+
+        # Two stacked shape rows, right-aligned against a common edge.
+        for row, (shape, tag) in enumerate([(shape_a, "A"), (shape_b, "B")]):
+            row_y = y - row * 0.52
+            ax.text(3.42, row_y + 0.21, tag, fontsize=8.5,
+                    color=COLORS["muted"], ha="right", va="center")
+            for j, dim in enumerate(shape):
+                x = 3.62 + j * 0.78
+                # A starred entry is a dimension NumPy padded on the left.
+                padded = dim.endswith("*")
+                rounded_box(
+                    ax, (x, row_y), 0.68, 0.42, dim.rstrip("*"),
+                    facecolor="#FFFFFF" if not padded else COLORS["muted"] + "18",
+                    edgecolor=COLORS["muted"] if padded else COLORS["primary"],
+                    fontsize=9.5, fontweight="bold",
+                    textcolor=COLORS["muted"] if padded else COLORS["text"],
+                )
+
+        # Result, or the reason it fails.
+        ax.text(5.55, y - 0.05, "→", fontsize=15, color=color,
+                ha="center", va="center")
+
+        if ok:
+            for j, dim in enumerate(result):
+                x = 6.05 + j * 0.78
+                rounded_box(ax, (x, y - 0.26), 0.68, 0.42, dim,
+                            facecolor=color + "18", edgecolor=color,
+                            fontsize=9.5, fontweight="bold",
+                            textcolor=COLORS["text"])
+            ax.text(7.75, y - 0.05, "✔  broadcasts", fontsize=9.5,
+                    color=color, va="center", fontweight="bold")
+        else:
+            ax.text(6.05, y - 0.05, "✘  4 vs 3 — neither is 1",
+                    fontsize=9.5, color=color, va="center", fontweight="bold")
+
+        y -= 1.45
+
+    ax.text(0.25, 0.86,
+            "*  a shape shorter than the other is padded with 1s on the LEFT "
+            "before comparing",
+            fontsize=8.5, color=COLORS["muted"])
+    ax.text(0.25, 0.46,
+            "To fix the failing case, make the intent explicit:  "
+            "b.reshape(3, 1)  →  (3, 4)",
+            fontsize=9, color=COLORS["text"], style="italic")
+
+    ax.set_title("Broadcasting: the Two Rules",
+                 fontsize=14, fontweight="bold", loc="center", pad=14)
+    save(fig, "broadcasting_rules.png")
+
+
+def fig_axis_semantics() -> None:
+    """`axis=` names the dimension that disappears."""
+    fig, ax = blank_axes((11, 5.8), xlim=(0, 11), ylim=(0, 5.8))
+
+    values = np.array([[1, 2, 3, 4],
+                       [5, 6, 7, 8],
+                       [9, 10, 11, 12]])
+    n_rows, n_cols = values.shape
+
+    cell = 0.72
+    grid_x, grid_y = 2.55, 2.35
+
+    # The array itself.
+    for i in range(n_rows):
+        for j in range(n_cols):
+            x = grid_x + j * cell
+            # Row 0 at the top: matrix order, not plot order.
+            y = grid_y + (n_rows - 1 - i) * cell
+            rounded_box(ax, (x, y), cell, cell, str(values[i, j]),
+                        facecolor="#FFFFFF", edgecolor="#C8C8C8",
+                        fontsize=9.5, linewidth=1.1)
+
+    # Sits just above the grid (top edge at grid_y + 3*cell = 4.51) and clear of
+    # the rule banner, which starts at 5.02.
+    ax.text(grid_x + n_cols * cell / 2, grid_y + n_rows * cell + 0.26,
+            "arr.shape == (3, 4)", ha="center", fontsize=10,
+            family="monospace", fontweight="bold", color=COLORS["text"])
+
+    # --- axis=0: collapse DOWN the rows ------------------------------------
+    for j in range(n_cols):
+        x = grid_x + j * cell + cell / 2
+        arrow(ax, (x, grid_y - 0.12), (x, grid_y - 0.72),
+              color=COLORS["accent"], linewidth=1.6)
+    for j in range(n_cols):
+        x = grid_x + j * cell
+        rounded_box(ax, (x, grid_y - 1.5), cell, cell,
+                    str(values.sum(axis=0)[j]),
+                    facecolor=COLORS["accent"] + "18",
+                    edgecolor=COLORS["accent"], fontsize=9.5,
+                    fontweight="bold")
+
+    ax.text(grid_x + n_cols * cell / 2, grid_y - 1.95,
+            "arr.sum(axis=0)  →  shape (4,)", ha="center", fontsize=9.5,
+            family="monospace", fontweight="bold", color=COLORS["accent"])
+    ax.text(grid_x + n_cols * cell / 2, grid_y - 2.32,
+            "axis 0 (the rows) is gone", ha="center", fontsize=8.5,
+            color=COLORS["muted"])
+
+    # --- axis=1: collapse ACROSS the columns -------------------------------
+    right_edge = grid_x + n_cols * cell
+    for i in range(n_rows):
+        y = grid_y + (n_rows - 1 - i) * cell + cell / 2
+        arrow(ax, (right_edge + 0.12, y), (right_edge + 0.72, y),
+              color=COLORS["purple"], linewidth=1.6)
+        rounded_box(ax, (right_edge + 0.86, y - cell / 2), cell, cell,
+                    str(values.sum(axis=1)[i]),
+                    facecolor=COLORS["purple"] + "18",
+                    edgecolor=COLORS["purple"], fontsize=9.5,
+                    fontweight="bold")
+
+    ax.text(right_edge + 0.86 + cell / 2, grid_y - 0.55,
+            "arr.sum(axis=1)", ha="center", fontsize=9.5,
+            family="monospace", fontweight="bold", color=COLORS["purple"])
+    ax.text(right_edge + 0.86 + cell / 2, grid_y - 0.92,
+            "→ shape (3,)", ha="center", fontsize=9,
+            family="monospace", color=COLORS["purple"])
+
+    # The rule, stated once, in a banner above everything else.
+    rounded_box(ax, (0.3, 5.02), 10.4, 0.68, "",
+                facecolor=COLORS["primary"] + "10",
+                edgecolor=COLORS["primary"], linewidth=1.6)
+    ax.text(5.5, 5.36,
+            "`axis` names the dimension that DISAPPEARS — not the one you keep.",
+            ha="center", va="center", fontsize=10.5, fontweight="bold",
+            color=COLORS["primary"])
+
+    ax.set_title("Reading `axis=` Correctly",
+                 fontsize=14, fontweight="bold", loc="center", pad=12)
+    save(fig, "axis_semantics.png")
+
+
+def fig_views_vs_copies() -> None:
+    """Slicing a list copies; slicing an array does not."""
+    fig, ax = blank_axes((12, 5.8), xlim=(0, 12), ylim=(0, 5.8))
+
+    # ---------------- LEFT: list slicing copies ---------------------------
+    ax.text(3.0, 5.35, "list  —  slicing COPIES", ha="center", fontsize=11.5,
+            fontweight="bold", color=COLORS["teal"])
+    ax.text(3.0, 4.95, "lst = [1, 2, 3, 4]\npart = lst[1:3]\npart[0] = 99",
+            ha="center", fontsize=9, family="monospace",
+            color=COLORS["text"], linespacing=1.5, va="top")
+
+    for i, value in enumerate([1, 2, 3, 4]):
+        rounded_box(ax, (0.9 + i * 0.85, 2.72), 0.85, 0.6, str(value),
+                    facecolor="#FFFFFF", edgecolor="#C8C8C8", fontsize=9.5)
+    ax.text(0.55, 3.02, "lst", fontsize=9.5, fontweight="bold",
+            family="monospace", color=COLORS["text"], ha="right", va="center")
+
+    for i, value in enumerate([99, 3]):
+        rounded_box(ax, (1.75 + i * 0.85, 1.62), 0.85, 0.6, str(value),
+                    facecolor=COLORS["teal"] + "18",
+                    edgecolor=COLORS["teal"], fontsize=9.5, fontweight="bold")
+    ax.text(1.4, 1.92, "part", fontsize=9.5, fontweight="bold",
+            family="monospace", color=COLORS["teal"], ha="right", va="center")
+
+    ax.text(3.0, 1.05, "a SECOND buffer — lst is untouched",
+            ha="center", fontsize=9, color=COLORS["teal"], fontweight="bold")
+    ax.text(3.0, 0.62, "lst  →  [1, 2, 3, 4]", ha="center", fontsize=9.5,
+            family="monospace", color=COLORS["text"])
+
+    # ---------------- RIGHT: array slicing views --------------------------
+    ax.text(9.0, 5.35, "ndarray  —  slicing gives a VIEW", ha="center",
+            fontsize=11.5, fontweight="bold", color=COLORS["danger"])
+    ax.text(9.0, 4.95,
+            "arr = np.array([1, 2, 3, 4])\npart = arr[1:3]\npart[0] = 99",
+            ha="center", fontsize=9, family="monospace",
+            color=COLORS["text"], linespacing=1.5, va="top")
+
+    for i, value in enumerate([1, 99, 3, 4]):
+        highlighted = i in (1, 2)
+        rounded_box(
+            ax, (6.9 + i * 0.85, 2.72), 0.85, 0.6, str(value),
+            facecolor=COLORS["danger"] + "18" if highlighted else "#FFFFFF",
+            edgecolor=COLORS["danger"] if highlighted else "#C8C8C8",
+            fontsize=9.5, fontweight="bold" if highlighted else "normal",
+        )
+    ax.text(6.55, 3.02, "arr", fontsize=9.5, fontweight="bold",
+            family="monospace", color=COLORS["text"], ha="right", va="center")
+
+    # `part` is drawn as a bracket over the shared cells, not as a new buffer.
+    ax.plot([7.75, 9.45], [2.35, 2.35], color=COLORS["danger"], linewidth=1.6)
+    for x in (7.75, 9.45):
+        ax.plot([x, x], [2.35, 2.55], color=COLORS["danger"], linewidth=1.6)
+    ax.text(8.6, 1.98, "part  — same memory, no copy", ha="center",
+            fontsize=9, family="monospace", color=COLORS["danger"],
+            fontweight="bold")
+
+    ax.text(9.0, 1.05, "ONE buffer — writing through the view changes arr",
+            ha="center", fontsize=9, color=COLORS["danger"], fontweight="bold")
+    ax.text(9.0, 0.62, "arr  →  [1, 99, 3, 4]", ha="center", fontsize=9.5,
+            family="monospace", color=COLORS["danger"], fontweight="bold")
+
+    ax.plot([6.0, 6.0], [0.4, 5.5], color="#DDDDDD", linewidth=1.2, zorder=1)
+
+    ax.text(6.0, 0.16,
+            "Check with  arr.base is not None  ·  force a copy with  arr[1:3].copy()",
+            ha="center", fontsize=8.5, color=COLORS["muted"], style="italic")
+
+    ax.set_title("The Rule That Reverses from Module 01",
+                 fontsize=14, fontweight="bold", loc="center", pad=12)
+    save(fig, "views_vs_copies.png")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -794,6 +1101,11 @@ FIGURES = [
     fig_data_structures,
     fig_legb_scope,
     fig_exception_hierarchy,
+    # --- Module 02 ---
+    fig_numpy_memory_layout,
+    fig_broadcasting_rules,
+    fig_axis_semantics,
+    fig_views_vs_copies,
 ]
 
 

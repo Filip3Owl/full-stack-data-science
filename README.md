@@ -68,7 +68,7 @@ This course covers all of them:
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
 | **01** | [**Python Foundations for Data Science**](modules/01-python-foundations/) | Environment & tooling, types, control flow, data structures, comprehensions, functions, generators, decorators, OOP, file I/O, errors, logging, testing, type hints | ✅ **Ready** |
-| 02 | NumPy & Numerical Computing | ndarrays, broadcasting, vectorisation, linear algebra, random generators, memory layout | 🔜 |
+| **02** | [**NumPy & Numerical Computing**](modules/02-numpy-numerical-computing/) | ndarrays, views vs copies, dtypes & precision, broadcasting, aggregations & masking, linear algebra, random generators, strides & memory | ✅ **Ready** |
 | 03 | pandas & Data Wrangling | Series/DataFrame, indexing, joins, group-by, reshaping, time indexes, method chaining | 🔜 |
 | 04 | Data Visualization | matplotlib grammar, seaborn statistical plots, plotly interactivity, chart selection, accessibility | 🔜 |
 | 05 | SQL & Databases | SELECT → window functions, CTEs, query planning, SQLAlchemy, DuckDB, warehouse patterns | 🔜 |
@@ -217,11 +217,13 @@ CoursePythonStatistics/
 │   └── external/               ← third-party downloads
 │
 ├── modules/
-│   └── 01-python-foundations/
-│       ├── README.md           ← module syllabus, objectives, checklist
-│       ├── notebooks/          ← the lessons (.ipynb, executed)
-│       ├── scripts/            ← plain-text .py mirrors of each notebook
-│       └── exercises/          ← practice problems + solutions
+│   ├── 01-python-foundations/
+│   │   ├── README.md           ← module syllabus, objectives, checklist
+│   │   ├── notebooks/          ← the lessons (.ipynb, executed)
+│   │   ├── scripts/            ← plain-text .py mirrors of each notebook
+│   │   └── exercises/          ← practice problems + solutions
+│   └── 02-numpy-numerical-computing/
+│       └── …                   ← same layout, one directory per module
 │
 ├── src/dstoolkit/              ← reusable helper package importable everywhere
 ├── scripts/                    ← project-level utilities
