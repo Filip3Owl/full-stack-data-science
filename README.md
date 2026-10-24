@@ -2,7 +2,7 @@
 
 A complete, hands-on course that takes you from the Python language itself all the
 way to **machine learning models running in production**. Every concept is taught
-with real, executable code in Jupyter notebooks — no pseudo-code, no toy snippets
+with real, executable code in Jupyter notebooks: no pseudo-code, no toy snippets
 that break when you run them.
 
 > **Who this is for:** anyone aiming for a Data Scientist / ML Engineer role at a
@@ -29,7 +29,7 @@ Three rules shape every notebook in this repository:
 
 | Rule | What it means in practice |
 | :--- | :--- |
-| **Run it, don't read it** | Every notebook is committed *with its outputs already executed*, so you can read it like a book — but you learn by re-running and breaking it. |
+| **Run it, don't read it** | Every notebook is committed *with its outputs already executed*, so you can read it like a book, but you learn by re-running and breaking it. |
 | **Explain the "why"** | Code comments explain intent, not syntax. Markdown cells explain the statistical or engineering reasoning behind the choice. |
 | **Production-shaped** | We favour the patterns real teams use (pipelines, type hints, tests, reproducible seeds) over shortcuts that only work in a demo. |
 
@@ -63,7 +63,7 @@ This course covers all of them:
 
 ## Curriculum
 
-### Part I — Foundations
+### Part I: Foundations
 
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
@@ -73,7 +73,7 @@ This course covers all of them:
 | 04 | Data Visualization | matplotlib grammar, seaborn statistical plots, plotly interactivity, chart selection, accessibility | 🔜 |
 | 05 | SQL & Databases | SELECT → window functions, CTEs, query planning, SQLAlchemy, DuckDB, warehouse patterns | 🔜 |
 
-### Part II — Statistics & Inference
+### Part II: Statistics & Inference
 
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
@@ -82,19 +82,19 @@ This course covers all of them:
 | 08 | Inferential Statistics | Estimation, confidence intervals, hypothesis tests, power, multiple comparisons, bootstrap |🔜 |
 | 09 | Experimentation & A/B Testing | Experiment design, sample sizing, sequential testing, CUPED, causal inference basics | 🔜 |
 
-### Part III — Machine Learning
+### Part III: Machine Learning
 
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
 | 10 | Data Cleaning & Feature Engineering | Missing data, encoding, scaling, leakage, pipelines, ColumnTransformer | 🔜 |
-| 11 | Supervised Learning — Regression | Linear/regularised models, assumptions, residual analysis, tree regressors | 🔜 |
-| 12 | Supervised Learning — Classification | Logistic regression, SVM, kNN, naive Bayes, class imbalance, thresholds | 🔜 |
+| 11 | Supervised Learning: Regression | Linear/regularised models, assumptions, residual analysis, tree regressors | 🔜 |
+| 12 | Supervised Learning: Classification | Logistic regression, SVM, kNN, naive Bayes, class imbalance, thresholds | 🔜 |
 | 13 | Model Evaluation & Tuning | Cross-validation, metrics, ROC/PR, calibration, grid/random/Bayesian search | 🔜 |
 | 14 | Ensembles & Gradient Boosting | Bagging, random forests, XGBoost, LightGBM, CatBoost, stacking | 🔜 |
 | 15 | Unsupervised Learning | k-means, hierarchical, DBSCAN, PCA, t-SNE/UMAP, anomaly detection | 🔜 |
 | 16 | Time Series & Forecasting | Decomposition, stationarity, ARIMA, SARIMAX, Prophet, backtesting | 🔜 |
 
-### Part IV — Deep Learning & Unstructured Data
+### Part IV: Deep Learning & Unstructured Data
 
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
@@ -102,13 +102,13 @@ This course covers all of them:
 | 18 | Natural Language Processing | Text preprocessing, TF-IDF, embeddings, transformers, fine-tuning, LLM usage patterns | 🔜 |
 | 19 | Computer Vision | CNNs, augmentation, transfer learning, segmentation basics | 🔜 |
 
-### Part V — Scale & Production
+### Part V: Scale & Production
 
 | # | Module | Key topics | Status |
 | :-: | :--- | :--- | :-: |
 | 20 | Big Data Processing | PySpark DataFrames, lazy evaluation, partitioning, Dask, DuckDB at scale | 🔜 |
-| 21 | MLOps I — Reproducibility | Project structure, config, experiment tracking with MLflow, model registry, DVC concepts | 🔜 |
-| 22 | MLOps II — Deployment | FastAPI serving, Docker, batch vs. online inference, CI/CD, cloud deployment | 🔜 |
+| 21 | MLOps I: Reproducibility | Project structure, config, experiment tracking with MLflow, model registry, DVC concepts | 🔜 |
+| 22 | MLOps II: Deployment | FastAPI serving, Docker, batch vs. online inference, CI/CD, cloud deployment | 🔜 |
 | 23 | Monitoring & Explainability | Data/concept drift, performance monitoring, SHAP, fairness, model governance | 🔜 |
 | 24 | Capstone & Communication | End-to-end project, storytelling, executive summaries, portfolio & interview prep | 🔜 |
 
@@ -135,7 +135,7 @@ The project ships with a `.venv` created by [uv](https://docs.astral.sh/uv/), a
 fast Python package manager. Pick whichever tool you have:
 
 <details>
-<summary><b>Option A — uv (recommended, fastest)</b></summary>
+<summary><b>Option A: uv (recommended, fastest)</b></summary>
 
 ```bash
 # Install uv once (macOS/Linux)
@@ -148,7 +148,7 @@ uv pip install --python .venv/bin/python -e ".[dev]"
 </details>
 
 <details>
-<summary><b>Option B — standard library venv</b></summary>
+<summary><b>Option B: standard library venv</b></summary>
 
 ```bash
 python3.12 -m venv .venv
@@ -178,7 +178,7 @@ Then open `modules/01-python-foundations/notebooks/` and start with notebook `01
 
 > **Select the right kernel.** In the top-right of each notebook, make sure the
 > kernel reads *Python 3.12 (Data Science Course)*. If it says anything else,
-> click it and switch — otherwise imports will fail.
+> click it and switch; otherwise imports will fail.
 
 ### 5. (Optional) Install extras for later modules
 
@@ -241,14 +241,14 @@ practise that promotion loop from Module 01 onward.
 
 Each module follows the same rhythm:
 
-1. **Read the module `README.md`** — learning objectives and time estimate.
-2. **Work through the notebooks in order** — they build on each other.
+1. **Read the module `README.md`**: learning objectives and time estimate.
+2. **Work through the notebooks in order**: they build on each other.
 3. **Run every cell yourself.** Then change a value and predict the output
    *before* re-running it. This is where the learning actually happens.
 4. **Do the exercises** in `exercises/` before opening the solutions.
-5. **Complete the module project** — an integrated problem using everything covered.
+5. **Complete the module project**: an integrated problem using everything covered.
 
-**Suggested pace:** one module per week at ~6–8 hours/week. The full course is
+**Suggested pace:** one module per week at ~6-8 hours/week. The full course is
 roughly a 6-month part-time commitment.
 
 ---
@@ -272,8 +272,8 @@ These hold across every notebook so you always know what you are looking at.
 
 - **PEP 8** enforced by `ruff`, formatted with `black` (88-char lines).
 - **Type hints** on every function that lives in `src/`.
-- **Docstrings** in NumPy style — the standard across the scientific Python ecosystem.
-- **Seeded randomness** — every stochastic cell sets a seed so your output matches ours.
+- **Docstrings** in NumPy style, the standard across the scientific Python ecosystem.
+- **Seeded randomness**: every stochastic cell sets a seed so your output matches ours.
 
 ### Running quality checks
 
@@ -287,4 +287,4 @@ These hold across every notebook so you always know what you are looking at.
 
 ## License
 
-MIT — use it, fork it, teach with it.
+MIT: use it, fork it, teach with it.
