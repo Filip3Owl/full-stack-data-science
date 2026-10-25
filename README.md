@@ -19,6 +19,7 @@ that break when you run them.
 - [Getting Started](#getting-started)
 - [Repository Layout](#repository-layout)
 - [How to Study](#how-to-study)
+- [Companion Books (PDF)](#companion-books-pdf)
 - [Conventions](#conventions)
 
 ---
@@ -209,7 +210,11 @@ CoursePythonStatistics/
 ├── .gitignore
 │
 ├── assets/
-│   └── images/                 ← generated diagrams used across notebooks
+│   ├── images/                 ← generated diagrams used across notebooks
+│   │   └── book/               ← illustrations for the companion books
+│   └── fonts/                  ← open-licence (OFL) fonts the books are set in
+│
+├── books/                      ← companion-book sources (Markdown, one file per chapter)
 │
 ├── data/
 │   ├── raw/                    ← immutable inputs (never edited by hand)
@@ -221,7 +226,8 @@ CoursePythonStatistics/
 │   │   ├── README.md           ← module syllabus, objectives, checklist
 │   │   ├── notebooks/          ← the lessons (.ipynb, executed)
 │   │   ├── scripts/            ← plain-text .py mirrors of each notebook
-│   │   └── exercises/          ← practice problems + solutions
+│   │   ├── exercises/          ← practice problems + solutions
+│   │   └── pdf/                ← the illustrated companion book
 │   └── 02-numpy-numerical-computing/
 │       └── …                   ← same layout, one directory per module
 │
@@ -242,14 +248,41 @@ practise that promotion loop from Module 01 onward.
 Each module follows the same rhythm:
 
 1. **Read the module `README.md`**: learning objectives and time estimate.
-2. **Work through the notebooks in order**: they build on each other.
-3. **Run every cell yourself.** Then change a value and predict the output
+2. **Read the companion book chapter** (optional, but recommended): the same
+   ideas in a lighter voice, with diagrams and stories, to read away from the keyboard.
+3. **Work through the notebooks in order**: they build on each other.
+4. **Run every cell yourself.** Then change a value and predict the output
    *before* re-running it. This is where the learning actually happens.
-4. **Do the exercises** in `exercises/` before opening the solutions.
-5. **Complete the module project**: an integrated problem using everything covered.
+5. **Do the exercises** in `exercises/` before opening the solutions.
+6. **Complete the module project**: an integrated problem using everything covered.
 
 **Suggested pace:** one module per week at ~6-8 hours/week. The full course is
 roughly a 6-month part-time commitment.
+
+---
+
+## Companion Books (PDF)
+
+Every finished module has an illustrated companion book: every concept from its
+notebooks, told in a lighter voice, with diagrams drawn for print and short true
+stories from the history of data science (John Snow's cholera map, the Ariane 5
+overflow, the Netflix Prize…), each with its sources listed at the back.
+
+| Module | Book |
+| :-: | :--- |
+| 01 | [Python Foundations for Data Science](modules/01-python-foundations/pdf/01-python-foundations.pdf) |
+| 02 | [NumPy & Numerical Computing](modules/02-numpy-numerical-computing/pdf/02-numpy-numerical-computing.pdf) |
+
+The books are code, like everything else here: the text lives in `books/` as
+Markdown, the illustrations are drawn by `scripts/generate_book_figures.py`, and
+`scripts/build_books.py` typesets the PDFs.
+
+```bash
+uv pip install --python .venv/bin/python -e ".[books]"
+.venv/bin/python scripts/generate_book_figures.py    # redraw the illustrations
+.venv/bin/python scripts/build_books.py              # typeset every book
+.venv/bin/python scripts/build_books.py --module 02  # or just one
+```
 
 ---
 

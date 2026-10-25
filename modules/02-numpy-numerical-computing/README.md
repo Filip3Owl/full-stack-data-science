@@ -48,6 +48,15 @@ By the end of this module you will be able to:
 
 ---
 
+## Companion book
+
+📘 **[`pdf/02-numpy-numerical-computing.pdf`](pdf/02-numpy-numerical-computing.pdf)**: the illustrated companion to this module.
+Every concept from the notebooks below, in a lighter voice, with diagrams and
+short true stories from the history of data science. Read it alongside the
+notebooks or on its own, away from the keyboard.
+
+---
+
 ## Notebooks
 
 Work through them in order — each builds on the last.

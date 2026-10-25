@@ -1,0 +1,6 @@
+module_number = "01"
+module_title = "Python Foundations\\nfor Data Science"
+tagline = "The habits that keep your numbers honest"
+cover_image = "assets/images/book/m01_cover.png"
+author = "Filipe Rangel · Full-Stack Data Science with Python"
+subject = "An illustrated companion to Module 01: Python foundations for data science"

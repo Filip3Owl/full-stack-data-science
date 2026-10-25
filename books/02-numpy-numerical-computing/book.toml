@@ -1,0 +1,6 @@
+module_number = "02"
+module_title = "NumPy & Numerical\\nComputing"
+tagline = "Thinking in whole arrays, and knowing what they cost"
+cover_image = "assets/images/book/m02_cover.png"
+author = "Filipe Rangel · Full-Stack Data Science with Python"
+subject = "An illustrated companion to Module 02: NumPy and numerical computing"
