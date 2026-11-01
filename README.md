@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/images/readme_banner.svg" alt="Full-Stack Data Science, in yellow 8-bit letters on a gray pixel frame" width="820">
+</p>
+
 # Full-Stack Data Science with Python
 
 A complete, hands-on course that takes you from the Python language itself all the
