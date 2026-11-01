@@ -1050,11 +1050,15 @@ fixed = residuals_safe(y_true, y_pred)
 assert fixed.shape == (3,)
 print(f"residuals_safe → {fixed.shape}  {np.round(fixed, 2)}")
 
-# The assertion that would have caught the original bug:
-assert residuals.ndim == 1, (
-    f"residuals should be 1-D, got {residuals.shape} — "
-    "an unintended outer broadcast"
-)
+# The assertion that would have caught the original bug. `residuals` is still
+# the buggy (3, 3) array, so it fires; we catch it here to show the message.
+try:
+    assert residuals.ndim == 1, (
+        f"residuals should be 1-D, got {residuals.shape} — "
+        "an unintended outer broadcast"
+    )
+except AssertionError as err:
+    print(f"AssertionError: {err}")
 
 # %% [markdown]
 # > **The habit:** after any subtraction of two arrays that came from different

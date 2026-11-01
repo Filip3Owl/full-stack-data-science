@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block body_class %}page-doc{% endblock %}
+{% block tab_lessons %}
+<button class="tab nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
+  <span>Lessons</span>
+</button>
+{% endblock %}
+{% macro lesson_link(entry) %}
+<li>
+  <a class="sidebar-link{% if page == entry.path %} is-current{% endif %}" href="{{ url(entry.path) }}" data-lesson-link="{{ entry.lesson_id }}"{% if page == entry.path %} aria-current="page"{% endif %}>
+    <span class="lesson-check" aria-hidden="true"></span>
+    <span>{{ entry.title }}</span>
+  </a>
+</li>
+{% endmacro %}
+{% block layout %}
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Course">
+    <a class="sidebar-home" href="{{ url('index.html') }}">← All modules</a>
+    <a class="sidebar-link{% if page == 'getting-started.html' %} is-current{% endif %}" href="{{ url('getting-started.html') }}"{% if page == 'getting-started.html' %} aria-current="page"{% endif %}>Getting started</a>
+    {% for item in ready_modules %}
+    <details class="sidebar-module"{% if module is defined and module.number == item.number %} open{% endif %}>
+      <summary>
+        <span class="module-number">{{ item.number }}</span>
+        <span>{{ item.title }}</span>
+      </summary>
+      <ul>
+        <li><a class="sidebar-link{% if page == item.path %} is-current{% endif %}" href="{{ url(item.path) }}"{% if page == item.path %} aria-current="page"{% endif %}>Overview</a></li>
+        {% for entry in item.lessons if entry.kind != 'solutions' %}
+        {{ lesson_link(entry) }}
+        {% endfor %}
+        {% if item.has_exercises %}
+        <li><a class="sidebar-link{% if page == item.exercises_path %} is-current{% endif %}" href="{{ url(item.exercises_path) }}"{% if page == item.exercises_path %} aria-current="page"{% endif %}>Exercises</a></li>
+        {% endif %}
+        {% for entry in item.lessons if entry.kind == 'solutions' %}
+        {{ lesson_link(entry) }}
+        {% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+  </nav>
+  <div class="nav-scrim" hidden></div>
+
+  <main class="doc" id="content"{% if lesson is defined %} data-lesson-id="{{ lesson.lesson_id }}" data-lesson-title="{{ lesson.title }}" data-lesson-path="{{ lesson.path }}"{% endif %}>
+    <header class="doc-header">
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h1>{{ title }}</h1>
+      {% if lesson is defined and (lesson.description or lesson.time) %}
+      <p class="doc-meta">
+        {% if lesson.time %}<span class="doc-time">{{ lesson.time }}</span>{% endif %}
+        {{ lesson.description }}
+      </p>
+      {% endif %}
+      {% if lesson is defined and lesson.kind == 'solutions' %}
+      <p class="spoiler-note">Worked solutions. Try the <a href="{{ url(module.exercises_path) }}">exercises</a> first.</p>
+      {% endif %}
+    </header>
+
+    <article class="prose">
+      {{ body | safe }}
+    </article>
+
+    {% if lesson is defined %}
+    <div class="complete-row">
+      <button class="complete-button" type="button" role="switch" aria-checked="false">
+        <span class="complete-label">Mark lesson as complete</span>
+        <span class="switch" aria-hidden="true"></span>
+      </button>
+    </div>
+    {% endif %}
+
+    {% if previous or following %}
+    <nav class="pager" aria-label="Lesson order">
+      {% if previous %}
+      <a class="pager-link" href="{{ url(previous[0]) }}"><small>Previous</small><span>{{ previous[1] }}</span></a>
+      {% else %}<span></span>{% endif %}
+      {% if following %}
+      <a class="pager-link pager-next" href="{{ url(following[0]) }}"><small>Next</small><span>{{ following[1] }}</span></a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </main>
+
+  {% if toc %}
+  <aside class="toc" aria-label="On this page">
+    <p class="toc-title">On this page</p>
+    <ul>
+      {% for item in toc %}
+      <li class="toc-level-{{ item.level }}"><a href="#{{ item.id }}">{{ item.text }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

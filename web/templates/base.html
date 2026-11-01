@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-root="{{ root }}" data-page="{{ page }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block page_title %}{{ title }} · Full-Stack Data Science{% endblock %}</title>
+<meta name="description" content="A hands-on data science course in Python, from the language itself to machine learning in production.">
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("fsds:theme"); } catch (e) {}
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  })();
+</script>
+<link rel="icon" href="{{ url('static/favicon.svg') }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ url('static/site.css') }}">
+{% if has_math %}
+<link rel="stylesheet" href="{{ url('static/katex/katex.min.css') }}">
+<script defer src="{{ url('static/katex/katex.min.js') }}"></script>
+{% endif %}
+<script defer src="{{ url('static/site.js') }}"></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="{{ url('index.html') }}">
+    <span class="brand-mark" aria-hidden="true">Σ</span>
+    <span class="brand-name">Full-Stack Data Science</span>
+  </a>
+  <button class="search-open" type="button" aria-haspopup="dialog" aria-label="Search the course">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <span class="search-open-label">Search the course</span>
+    <kbd>/</kbd>
+  </button>
+  <nav class="topbar-links" aria-label="Site">
+    <a href="{{ url('getting-started.html') }}">Get started</a>
+    <a href="{{ github_url }}" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-button theme-toggle" type="button" aria-label="Switch colour theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg>
+  </button>
+</header>
+
+{% block layout %}{% endblock %}
+
+<nav class="tabbar" aria-label="Quick navigation">
+  <a class="tab{% if page == 'index.html' %} is-active{% endif %}" href="{{ url('index.html') }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg>
+    <span>Home</span>
+  </a>
+  {% block tab_lessons %}{% endblock %}
+  <button class="tab search-open" type="button" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <span>Search</span>
+  </button>
+  <button class="tab theme-toggle" type="button" aria-label="Switch colour theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg>
+    <span>Theme</span>
+  </button>
+</nav>
+
+<dialog class="search-dialog" aria-label="Search the course">
+  <form method="dialog" class="search-form">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input class="search-input" type="search" placeholder="Search lessons, concepts and code" aria-label="Search" autocomplete="off" spellcheck="false">
+    <button class="search-close" value="close" aria-label="Close search">Esc</button>
+  </form>
+  <ol class="search-results" aria-live="polite"></ol>
+</dialog>
+</body>
+</html>
