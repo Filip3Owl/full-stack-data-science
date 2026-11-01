@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block tab_lessons %}
+<a class="tab" href="#curriculum-title">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
+  <span>Lessons</span>
+</a>
+{% endblock %}
+{% block layout %}
+<main class="home" id="content">
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">A course in {{ total_modules }} modules</p>
+      <h1>Full-Stack Data Science with Python</h1>
+      <p class="hero-intro">{{ intro }}</p>
+      <div class="hero-actions">
+        <a class="button button-primary continue-link" href="{{ url(ready_modules[0].path) }}" data-default-label="Start Module {{ ready_modules[0].number }}">Start Module {{ ready_modules[0].number }}</a>
+        <a class="button" href="{{ url('getting-started.html') }}">Set up your environment</a>
+      </div>
+      <dl class="hero-stats">
+        <div><dt>Modules ready</dt><dd>{{ ready_modules | length }} of {{ total_modules }}</dd></div>
+        <div><dt>Lessons</dt><dd>{{ total_lessons }}</dd></div>
+        <div><dt>Your progress</dt><dd class="total-progress" data-total="{{ total_lessons }}">0 of {{ total_lessons }}</dd></div>
+      </dl>
+    </div>
+    <img class="hero-figure" src="{{ stack_map }}" alt="The data science skill map, from foundations to communication">
+  </section>
+
+  <section class="rules" aria-label="How the course works">
+    {% for rule in philosophy %}
+    <div class="rule">
+      <h2>{{ rule.name }}</h2>
+      <p>{{ rule.text }}</p>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="curriculum" aria-labelledby="curriculum-title">
+    <h2 id="curriculum-title" class="section-title">Curriculum</h2>
+    <div class="parts">
+      {% for part in parts %}
+      <div class="part part-{{ loop.index }}">
+        <h3 class="part-title"><span>Part {{ part.numeral }}</span> {{ part.title }}</h3>
+        <ol class="module-list">
+          {% for module in part.modules %}
+          <li>
+            {% if module.ready %}
+            <a class="module-row" href="{{ url(module.path) }}">
+              <span class="module-number">{{ module.number }}</span>
+              <span class="module-main">
+                <span class="module-body">
+                  <span class="module-title">{{ module.title }}</span>
+                  <span class="module-topics">{{ module.topics }}</span>
+                  <span class="module-facts">{{ module.lessons | length }} lessons{% if module.time %} · {{ module.time }}{% endif %}</span>
+                  <span class="progress" data-module="{{ module.number }}" data-total="{{ module.lessons | length }}"><span class="progress-bar"></span></span>
+                </span>
+                <span class="chevron" aria-hidden="true"></span>
+              </span>
+            </a>
+            {% else %}
+            <div class="module-row is-upcoming">
+              <span class="module-number">{{ module.number }}</span>
+              <span class="module-main">
+                <span class="module-body">
+                  <span class="module-title">{{ module.title }}</span>
+                  <span class="module-topics">{{ module.topics }}</span>
+                </span>
+                <span class="soon">Soon</span>
+              </span>
+            </div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <footer class="home-footer">
+    <p>MIT licensed. <a href="{{ github_url }}" rel="noopener">Source on GitHub</a>. Your progress is saved only in this browser.</p>
+  </footer>
+</main>
+{% endblock %}

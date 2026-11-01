@@ -16,6 +16,7 @@ that break when you run them.
 - [Philosophy](#philosophy)
 - [The Data Science Stack](#the-data-science-stack)
 - [Curriculum](#curriculum)
+- [Web Version](#web-version)
 - [Getting Started](#getting-started)
 - [Repository Layout](#repository-layout)
 - [How to Study](#how-to-study)
@@ -114,6 +115,21 @@ This course covers all of them:
 
 ---
 
+## Web Version
+
+The whole course can be read in a browser: lessons with their executed outputs,
+search, dark mode, and progress saved in your browser. The site is generated
+from the notebooks and READMEs, so there is nothing extra to keep in sync.
+
+```bash
+uv pip install --python .venv/bin/python -e ".[web]"
+.venv/bin/python scripts/build_site.py --serve     # http://127.0.0.1:8000
+```
+
+Code cells are read-only on the site. To run them, use JupyterLab as described below.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -125,8 +141,8 @@ This course covers all of them:
 ### 1. Clone and enter the project
 
 ```bash
-git clone <your-fork-url> CoursePythonStatistics
-cd CoursePythonStatistics
+git clone <your-fork-url> full-stack-data-science
+cd full-stack-data-science
 ```
 
 ### 2. Create the virtual environment
@@ -202,7 +218,7 @@ You should see a green check for every core package.
 ## Repository Layout
 
 ```
-CoursePythonStatistics/
+full-stack-data-science/
 ├── README.md                   ← you are here
 ├── pyproject.toml              ← dependencies & tool configuration
 ├── requirements-lock.txt       ← exact pinned versions (reproducibility)
@@ -225,6 +241,7 @@ CoursePythonStatistics/
 │   └── 02-numpy-numerical-computing/
 │       └── …                   ← same layout, one directory per module
 │
+├── web/                        ← templates and styles of the web version
 ├── src/dstoolkit/              ← reusable helper package importable everywhere
 ├── scripts/                    ← project-level utilities
 └── tests/                      ← pytest suite for src/
