@@ -3,6 +3,8 @@
 
   var doc = document.documentElement;
   var root = doc.dataset.root || "./";
+  var localeRoot = doc.dataset.localeRoot || root;
+  var strings = window.FSDS_STRINGS || {};
   var main = document.querySelector("[data-lesson-id]");
 
   // Storage can throw or be empty (private windows, blocked site data); the site
@@ -42,7 +44,7 @@
   function setNav(open) {
     document.body.classList.toggle("nav-open", open);
     navToggle.setAttribute("aria-expanded", String(open));
-    navToggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+    navToggle.setAttribute("aria-label", open ? strings.close_nav : strings.open_nav);
     scrim.hidden = !open;
   }
   if (navToggle) {
@@ -73,17 +75,14 @@
       var share = Math.min(100, (100 * count) / Number(bar.dataset.total));
       bar.firstElementChild.style.width = share + "%";
       bar.setAttribute("role", "img");
-      bar.setAttribute("aria-label", count + " of " + bar.dataset.total + " lessons complete");
+      bar.setAttribute("aria-label", count + " " + strings.of + " " + bar.dataset.total + " " + strings.lessons_done);
     });
     var total = document.querySelector(".total-progress");
-    if (total) total.textContent = ids.length + " of " + total.dataset.total;
+    if (total) total.textContent = ids.length + " " + strings.of + " " + total.dataset.total;
   }
 
   if (main) {
-    save("last", {
-      title: main.dataset.lessonTitle,
-      path: main.dataset.lessonPath,
-    });
+    save("last", { path: main.dataset.lessonPath });
     var button = document.querySelector(".complete-button");
     var id = main.dataset.lessonId;
     var paint = function () {
@@ -91,8 +90,8 @@
       button.classList.toggle("is-complete", isDone);
       button.setAttribute("aria-checked", String(isDone));
       button.querySelector(".complete-label").textContent = isDone
-        ? "Lesson completed"
-        : "Mark lesson as complete";
+        ? strings.completed
+        : strings.mark_complete;
     };
     button.addEventListener("click", function () {
       var done = load("progress", {});
@@ -109,8 +108,11 @@
   var continueLink = document.querySelector(".continue-link");
   var last = load("last", null);
   if (continueLink && last && last.path) {
-    continueLink.href = root + last.path;
-    continueLink.textContent = "Continue: " + last.title;
+    var titles = JSON.parse(continueLink.dataset.titles || "{}");
+    if (titles[last.path]) {
+      continueLink.href = localeRoot + last.path;
+      continueLink.textContent = strings.continue_label + ": " + titles[last.path];
+    }
   }
 
   /* Self-assessment checklists ------------------------------------------- */
@@ -150,14 +152,14 @@
       var code = button.parentElement.querySelector("code").textContent;
       copyText(code).then(
         function () {
-          button.textContent = "Copied";
+          button.textContent = strings.copied;
         },
         function () {
-          button.textContent = "Press Ctrl+C";
+          button.textContent = strings.copy_failed;
         }
       );
       setTimeout(function () {
-        button.textContent = "Copy";
+        button.textContent = strings.copy;
       }, 1600);
     });
   });
@@ -228,7 +230,7 @@
     if (indexRequested) return;
     indexRequested = true;
     var script = document.createElement("script");
-    script.src = root + "static/search-index.js";
+    script.src = root + doc.dataset.search;
     script.onload = runSearch;
     document.head.appendChild(script);
   }
@@ -280,7 +282,7 @@
       return b.score - a.score;
     });
     if (!hits.length) {
-      results.innerHTML = '<li class="search-empty">No results for this search.</li>';
+      results.innerHTML = '<li class="search-empty">' + escapeHtml(strings.no_results) + "</li>";
       return;
     }
     results.innerHTML = hits

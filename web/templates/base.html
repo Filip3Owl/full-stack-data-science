@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en" data-root="{{ root }}" data-page="{{ page }}">
+<html lang="{{ t.html_lang }}" data-root="{{ root }}" data-locale-root="{{ locale_root }}" data-page="{{ base_page }}" data-search="{{ search_file }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>{% block page_title %}{{ title }} · Full-Stack Data Science{% endblock %}</title>
-<meta name="description" content="A hands-on data science course in Python, from the language itself to machine learning in production.">
+<title>{% block page_title %}{{ title }} · {{ t.site_name }}{% endblock %}</title>
+<meta name="description" content="{{ t.description }}">
 <script>
+  window.FSDS_STRINGS = {{ js_strings | tojson }};
   (function () {
     var saved = null;
     try { saved = localStorage.getItem("fsds:theme"); } catch (e) {}
@@ -21,49 +22,53 @@
 <script defer src="{{ url('static/site.js') }}"></script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
-<a class="skip-link" href="#content">Skip to content</a>
+<a class="skip-link" href="#content">{{ t.skip }}</a>
 <header class="topbar">
-  <a class="brand" href="{{ url('index.html') }}">
+  <a class="brand" href="{{ lurl('index.html') }}">
     <span class="brand-mark" aria-hidden="true">Σ</span>
-    <span class="brand-name">Full-Stack Data Science</span>
+    <span class="brand-name">{{ t.site_name }}</span>
   </a>
-  <button class="search-open" type="button" aria-haspopup="dialog" aria-label="Search the course">
+  <button class="search-open" type="button" aria-haspopup="dialog" aria-label="{{ t.search_label }}">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-    <span class="search-open-label">Search the course</span>
+    <span class="search-open-label">{{ t.search_label }}</span>
     <kbd>/</kbd>
   </button>
   <nav class="topbar-links" aria-label="Site">
-    <a href="{{ url('getting-started.html') }}">Get started</a>
+    <a href="{{ lurl('getting-started.html') }}">{{ t.get_started }}</a>
     <a href="{{ github_url }}" rel="noopener">GitHub</a>
   </nav>
-  <button class="icon-button theme-toggle" type="button" aria-label="Switch colour theme">
+  <div class="lang-switch" role="group" aria-label="{{ t.language_label }}">
+    <a href="{{ en_url }}" lang="en" hreflang="en"{% if locale.code == 'en' %} aria-current="true"{% endif %}>EN</a>
+    <a href="{{ pt_url }}" lang="pt-BR" hreflang="pt-BR"{% if locale.code == 'pt' %} aria-current="true"{% endif %}>PT</a>
+  </div>
+  <button class="icon-button theme-toggle" type="button" aria-label="{{ t.theme_label }}">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg>
   </button>
 </header>
 
 {% block layout %}{% endblock %}
 
-<nav class="tabbar" aria-label="Quick navigation">
-  <a class="tab{% if page == 'index.html' %} is-active{% endif %}" href="{{ url('index.html') }}">
+<nav class="tabbar" aria-label="{{ t.tabbar_label }}">
+  <a class="tab{% if base_page == 'index.html' %} is-active{% endif %}" href="{{ lurl('index.html') }}">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg>
-    <span>Home</span>
+    <span>{{ t.tab_home }}</span>
   </a>
   {% block tab_lessons %}{% endblock %}
   <button class="tab search-open" type="button" aria-haspopup="dialog">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-    <span>Search</span>
+    <span>{{ t.tab_search }}</span>
   </button>
-  <button class="tab theme-toggle" type="button" aria-label="Switch colour theme">
+  <button class="tab theme-toggle" type="button" aria-label="{{ t.theme_label }}">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg>
-    <span>Theme</span>
+    <span>{{ t.tab_theme }}</span>
   </button>
 </nav>
 
-<dialog class="search-dialog" aria-label="Search the course">
+<dialog class="search-dialog" aria-label="{{ t.search_label }}">
   <form method="dialog" class="search-form">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-    <input class="search-input" type="search" placeholder="Search lessons, concepts and code" aria-label="Search" autocomplete="off" spellcheck="false">
-    <button class="search-close" value="close" aria-label="Close search">Esc</button>
+    <input class="search-input" type="search" placeholder="{{ t.search_placeholder }}" aria-label="{{ t.tab_search }}" autocomplete="off" spellcheck="false">
+    <button class="search-close" value="close" aria-label="{{ t.close_search }}">Esc</button>
   </form>
   <ol class="search-results" aria-live="polite"></ol>
 </dialog>

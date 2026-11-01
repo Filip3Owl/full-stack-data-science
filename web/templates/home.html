@@ -4,30 +4,30 @@
 {% block tab_lessons %}
 <a class="tab" href="#curriculum-title">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
-  <span>Lessons</span>
+  <span>{{ t.tab_lessons }}</span>
 </a>
 {% endblock %}
 {% block layout %}
 <main class="home" id="content">
   <section class="hero">
     <div class="hero-text">
-      <p class="eyebrow">A course in {{ total_modules }} modules</p>
-      <h1>Full-Stack Data Science with Python</h1>
+      <p class="eyebrow">{{ t.hero_eyebrow.format(n=total_modules) }}</p>
+      <h1>{{ t.course_title }}</h1>
       <p class="hero-intro">{{ intro }}</p>
       <div class="hero-actions">
-        <a class="button button-primary continue-link" href="{{ url(ready_modules[0].path) }}" data-default-label="Start Module {{ ready_modules[0].number }}">Start Module {{ ready_modules[0].number }}</a>
-        <a class="button" href="{{ url('getting-started.html') }}">Set up your environment</a>
+        <a class="button button-primary continue-link" href="{{ url(ready_modules[0].path) }}" data-titles="{{ lesson_titles | tojson | forceescape }}">{{ t.start_module.format(n=ready_modules[0].number) }}</a>
+        <a class="button" href="{{ lurl('getting-started.html') }}">{{ t.setup_env }}</a>
       </div>
       <dl class="hero-stats">
-        <div><dt>Modules ready</dt><dd>{{ ready_modules | length }} of {{ total_modules }}</dd></div>
-        <div><dt>Lessons</dt><dd>{{ total_lessons }}</dd></div>
-        <div><dt>Your progress</dt><dd class="total-progress" data-total="{{ total_lessons }}">0 of {{ total_lessons }}</dd></div>
+        <div><dt>{{ t.modules_ready }}</dt><dd>{{ ready_modules | length }} {{ t.of }} {{ total_modules }}</dd></div>
+        <div><dt>{{ t.tab_lessons }}</dt><dd>{{ total_lessons }}</dd></div>
+        <div><dt>{{ t.your_progress }}</dt><dd class="total-progress" data-total="{{ total_lessons }}">0 {{ t.of }} {{ total_lessons }}</dd></div>
       </dl>
     </div>
-    <img class="hero-figure" src="{{ stack_map }}" alt="The data science skill map, from foundations to communication">
+    <img class="hero-figure" src="{{ stack_map }}" alt="{{ t.stack_map_alt }}">
   </section>
 
-  <section class="rules" aria-label="How the course works">
+  <section class="rules" aria-label="{{ t.rules_label }}">
     {% for rule in philosophy %}
     <div class="rule">
       <h2>{{ rule.name }}</h2>
@@ -37,11 +37,11 @@
   </section>
 
   <section class="curriculum" aria-labelledby="curriculum-title">
-    <h2 id="curriculum-title" class="section-title">Curriculum</h2>
+    <h2 id="curriculum-title" class="section-title">{{ t.curriculum }}</h2>
     <div class="parts">
       {% for part in parts %}
       <div class="part part-{{ loop.index }}">
-        <h3 class="part-title"><span>Part {{ part.numeral }}</span> {{ part.title }}</h3>
+        <h3 class="part-title"><span>{{ t.part }} {{ part.numeral }}</span> {{ part.title }}</h3>
         <ol class="module-list">
           {% for module in part.modules %}
           <li>
@@ -52,7 +52,7 @@
                 <span class="module-body">
                   <span class="module-title">{{ module.title }}</span>
                   <span class="module-topics">{{ module.topics }}</span>
-                  <span class="module-facts">{{ module.lessons | length }} lessons{% if module.time %} · {{ module.time }}{% endif %}</span>
+                  <span class="module-facts">{{ module.lessons | length }} {{ t.lessons_lower }}{% if module.time %} · {{ module.time }}{% endif %}</span>
                   <span class="progress" data-module="{{ module.number }}" data-total="{{ module.lessons | length }}"><span class="progress-bar"></span></span>
                 </span>
                 <span class="chevron" aria-hidden="true"></span>
@@ -66,7 +66,7 @@
                   <span class="module-title">{{ module.title }}</span>
                   <span class="module-topics">{{ module.topics }}</span>
                 </span>
-                <span class="soon">Soon</span>
+                <span class="soon">{{ t.soon }}</span>
               </span>
             </div>
             {% endif %}
@@ -79,7 +79,7 @@
   </section>
 
   <footer class="home-footer">
-    <p>MIT licensed. <a href="{{ github_url }}" rel="noopener">Source on GitHub</a>. Your progress is saved only in this browser.</p>
+    <p>{{ t.footer_license }} <a href="{{ github_url }}" rel="noopener">{{ t.footer_source }}</a>. {{ t.footer_progress }}</p>
   </footer>
 </main>
 {% endblock %}

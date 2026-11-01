@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import io
 import sys
+import tokenize
 from pathlib import Path
 
+import nbformat
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -109,3 +112,93 @@ def test_full_build_has_valid_links_and_no_local_paths(tmp_path: Path) -> None:
         assert not build_site.LOCAL_PATH_RE.search(
             page.read_text(encoding="utf-8")
         ), page
+
+
+# ---------------------------------------------------------------------------
+# Translations
+# ---------------------------------------------------------------------------
+def translated_lessons() -> list[Path]:
+    return sorted(build_site.MODULES_DIR.glob("*/notebooks/*.ipynb"))
+
+
+def test_translation_file_round_trips() -> None:
+    key = build_site.source_key("# Title")
+    text = f"<!-- en:{key} -->\n# Título\n\n<!-- comments -->\nEN: # hi\nPT: # oi\n"
+    parsed = build_site.parse_notebook_translation(text)
+    assert parsed.cells == {key: "# Título"}
+    assert parsed.comments == {"# hi": "# oi"}
+
+
+def test_unpaired_comment_lines_are_rejected() -> None:
+    with pytest.raises(build_site.BuildError, match="unpaired"):
+        build_site.parse_notebook_translation("<!-- comments -->\nEN: # hi\n")
+
+
+def test_comment_translation_changes_only_comments() -> None:
+    code = 'x = "# not a comment"  # add one\ny = x + "a"\n# done\n'
+    shown, missing = build_site.translate_comments(code, {"# add one": "# soma um"})
+    assert shown == 'x = "# not a comment"  # soma um\ny = x + "a"\n# done\n'
+    assert missing == ["# done"]
+
+
+@pytest.mark.parametrize("source", translated_lessons(), ids=lambda path: path.stem)
+def test_translated_lesson_keeps_the_code_identical(source: Path) -> None:
+    """Translating comments must never alter what a code cell does."""
+    locale = build_site.load_locale("pt")
+    translation = locale.notebook(source.parent.parent.name, source.stem)
+    notebook = nbformat.read(source, as_version=4)
+    for cell in notebook.cells:
+        if cell.cell_type != "code":
+            continue
+        shown, _ = build_site.translate_comments(cell.source, translation.comments)
+        assert code_tokens(shown) == code_tokens(cell.source)
+
+
+def code_tokens(source: str) -> list[str]:
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        return [token.string for token in tokens if token.type != tokenize.COMMENT]
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return [source]
+
+
+def test_changed_english_cell_falls_back_and_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = next(iter(translated_lessons()))
+    notebook = nbformat.read(source, as_version=4)
+    notebook.cells[1].source += "\n\nA brand new English sentence."
+    copy = tmp_path / "modules" / source.parent.parent.name / "notebooks" / source.name
+    copy.parent.mkdir(parents=True)
+    nbformat.write(notebook, copy)
+    locale = build_site.load_locale("pt")
+    lesson = build_site.Lesson(copy, source.parent.parent.name, "01", "T", prefix="pt/")
+    monkeypatch.setattr(
+        build_site.LinkMap, "rewrite", lambda self, url, source_dir, page: url
+    )
+    body, _ = build_site.render_notebook(
+        lesson, build_site.LinkMap([]), tmp_path, locale
+    )
+    assert "A brand new English sentence." in body
+    assert any("cell 1" in item for item in locale.missing)
+
+
+def test_both_languages_are_built_and_fully_translated(tmp_path: Path) -> None:
+    output = tmp_path / "site"
+    stats = build_site.build(output)
+    assert stats["missing"] == []
+    english = {p.relative_to(output) for p in output.glob("modules/*/*.html")}
+    assert english
+    for page in english:
+        assert (output / "pt" / page).exists()
+    home = (output / "pt" / "index.html").read_text(encoding="utf-8")
+    assert 'lang="pt-BR"' in home
+    assert "Full-Stack Data Science com Python" in home
+    lesson = output / "pt/modules/01-python-foundations/02_python_fundamentals.html"
+    text = lesson.read_text(encoding="utf-8")
+    assert "Tudo é um objeto" in text
+    assert "Everything is an object" not in text
+    assert (output / "static" / "search-index.pt.js").exists()
+    assert 'class="callout-title">Atenção<' in text
+    assert (output / "pt/assets/images/names_and_objects.png").exists()
+    assert "pt/assets/images" not in (output / "index.html").read_text("utf-8")

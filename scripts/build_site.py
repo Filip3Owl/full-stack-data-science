@@ -13,6 +13,13 @@ README links it. Nothing is re-executed here.
 
 Every internal link and anchor is verified at the end of the build, and a broken
 one fails it.
+
+Translations live only here, in `web/i18n/<code>/`: the notebooks and READMEs stay
+in English. A translated cell is keyed by a hash of its English source, so when
+the English changes that cell falls back to English and the build reports it.
+
+    # write English skeletons (prose and comments) to translate
+    .venv/bin/python scripts/build_site.py --i18n-skeleton /tmp/to-translate
 """
 
 from __future__ import annotations
@@ -20,14 +27,17 @@ from __future__ import annotations
 import argparse
 import base64
 import functools
+import hashlib
 import html
 import http.server
+import io
 import json
 import os
 import re
 import shutil
 import struct
 import sys
+import tokenize
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +57,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MODULES_DIR = REPO_ROOT / "modules"
 WEB_DIR = REPO_ROOT / "web"
 OUTPUT_DIR = REPO_ROOT / "site"
+I18N_DIR = WEB_DIR / "i18n"
 GITHUB_URL = "https://github.com/Filip3Owl/full-stack-data-science"
 
 CALLOUT_RE = re.compile(r"^\[!(NOTE|TIP|WARNING)\]\s*")
@@ -68,6 +79,116 @@ class BuildError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
+# Translations
+# ---------------------------------------------------------------------------
+TRANSLATION_MARK_RE = re.compile(r"^<!-- en:([0-9a-f]{10}) -->\n?", re.MULTILINE)
+COMMENTS_MARK = "<!-- comments -->"
+
+
+def source_key(text: str) -> str:
+    """Identify an English source, so its translation can be matched or expired."""
+    return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()[:10]
+
+
+@dataclass
+class NotebookTranslation:
+    """The translated prose and code comments of one notebook."""
+
+    cells: dict[str, str] = field(default_factory=dict)
+    comments: dict[str, str] = field(default_factory=dict)
+
+
+def parse_notebook_translation(text: str) -> NotebookTranslation:
+    """Parse a translation file: hash-marked cells, then an EN:/PT: comment list."""
+    prose, _, comment_block = text.partition(COMMENTS_MARK)
+    pieces = TRANSLATION_MARK_RE.split(prose)
+    cells = {
+        key: body.strip() for key, body in zip(pieces[1::2], pieces[2::2], strict=True)
+    }
+    lines = [line for line in comment_block.splitlines() if line.strip()]
+    if len(lines) % 2:
+        raise BuildError("a translated comment list has an unpaired line")
+    comments = {}
+    for english, translated in zip(lines[::2], lines[1::2], strict=True):
+        if not (english.startswith("EN: ") and translated.startswith("PT: ")):
+            raise BuildError(f"bad translated comment pair at {english!r}")
+        comments[english[4:]] = translated[4:]
+    return NotebookTranslation(cells, comments)
+
+
+def translate_comments(source: str, comments: dict[str, str]) -> tuple[str, list[str]]:
+    """Swap code comments for their translations; only comments can change.
+
+    Returns the code and the comments that have no translation.
+    """
+    lines = source.splitlines(keepends=True)
+    missing = []
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return source, missing
+    for token in reversed(tokens):
+        if token.type != tokenize.COMMENT:
+            continue
+        if token.string in comments:
+            row, column = token.start
+            line = lines[row - 1]
+            lines[row - 1] = (
+                line[:column] + comments[token.string] + line[token.end[1] :]
+            )
+        else:
+            missing.append(token.string)
+    return "".join(lines), missing
+
+
+@dataclass
+class Locale:
+    """A language of the site: its interface text and where its pages live."""
+
+    code: str
+    prefix: str
+    ui: dict
+    missing: list[str] = field(default_factory=list)
+
+    @property
+    def directory(self) -> Path:
+        return I18N_DIR / self.code
+
+    def text(self, relative: str, english: str) -> str | None:
+        """Return a translated document, or None; report if its source changed."""
+        if self.code == "en":
+            return english
+        path = self.directory / relative
+        if not path.exists():
+            self.missing.append(f"{relative}: not translated")
+            return None
+        text = path.read_text(encoding="utf-8")
+        mark = TRANSLATION_MARK_RE.match(text)
+        if not mark:
+            raise BuildError(f"{path} does not start with its source hash")
+        if mark[1] != source_key(english):
+            self.missing.append(f"{relative}: the English source changed")
+        return text[mark.end() :]
+
+    def notebook(self, slug: str, stem: str) -> NotebookTranslation | None:
+        if self.code == "en":
+            return None
+        path = self.directory / "modules" / slug / f"{stem}.md"
+        if not path.exists():
+            self.missing.append(f"modules/{slug}/{stem}.md: not translated")
+            return NotebookTranslation()
+        return parse_notebook_translation(path.read_text(encoding="utf-8"))
+
+
+def load_locale(code: str) -> Locale:
+    ui = json.loads((I18N_DIR / f"{code}.json").read_text(encoding="utf-8"))
+    return Locale(code, "" if code == "en" else f"{code}/", ui)
+
+
+LOCALE_CODES = ("en", "pt")
+
+
+# ---------------------------------------------------------------------------
 # Course model
 # ---------------------------------------------------------------------------
 @dataclass
@@ -80,14 +201,19 @@ class Lesson:
     title: str
     description: str = ""
     time: str = ""
+    prefix: str = ""
 
     @property
     def stem(self) -> str:
         return self.source.stem
 
     @property
-    def path(self) -> str:
+    def base_path(self) -> str:
         return f"modules/{self.module_slug}/{self.stem}.html"
+
+    @property
+    def path(self) -> str:
+        return self.prefix + self.base_path
 
     @property
     def lesson_id(self) -> str:
@@ -111,6 +237,7 @@ class Module:
     time: str = ""
     lessons: list[Lesson] = field(default_factory=list)
     has_exercises: bool = False
+    prefix: str = ""
 
     @property
     def ready(self) -> bool:
@@ -118,15 +245,15 @@ class Module:
 
     @property
     def path(self) -> str:
-        return f"modules/{self.slug}/index.html"
+        return f"{self.prefix}modules/{self.slug}/index.html"
 
     @property
     def exercises_path(self) -> str:
-        return f"modules/{self.slug}/exercises.html"
+        return f"{self.prefix}modules/{self.slug}/exercises.html"
 
-    def reading_order(self) -> list[tuple[str, str]]:
+    def reading_order(self, ui: dict) -> list[tuple[str, str]]:
         """Pages as (path, title), with the exercises before their solutions."""
-        pages = [(self.path, f"Module {self.number} overview")]
+        pages = [(self.path, ui["module_overview"].format(n=self.number))]
         solutions = [lesson for lesson in self.lessons if lesson.kind == "solutions"]
         pages += [
             (lesson.path, lesson.title)
@@ -134,7 +261,7 @@ class Module:
             if lesson.kind != "solutions"
         ]
         if self.has_exercises:
-            pages.append((self.exercises_path, "Exercises"))
+            pages.append((self.exercises_path, ui["exercises"]))
         pages += [(lesson.path, lesson.title) for lesson in solutions]
         return pages
 
@@ -148,11 +275,11 @@ class Part:
     modules: list[Module] = field(default_factory=list)
 
 
-def parse_curriculum(readme: str) -> list[Part]:
+def parse_curriculum(readme: str, prefix: str = "") -> list[Part]:
     """Read the parts and modules from the root README's curriculum tables."""
     parts: list[Part] = []
     for line in readme.splitlines():
-        heading = re.match(r"^### Part ([IVX]+): (.+)$", line)
+        heading = re.match(r"^### Parte? ([IVX]+): (.+)$", line)
         if heading:
             parts.append(Part(heading[1], heading[2].strip()))
             continue
@@ -167,6 +294,7 @@ def parse_curriculum(readme: str) -> list[Part]:
                 title=link[1] if link else name,
                 topics=row[3].strip(),
                 slug=link[2] if link else "",
+                prefix=prefix,
             )
         )
     if not parts:
@@ -174,13 +302,15 @@ def parse_curriculum(readme: str) -> list[Part]:
     return parts
 
 
-def load_module(module: Module) -> None:
+def load_module(module: Module, locale: Locale | None = None) -> None:
     """Fill in a ready module's lessons from its directory and README."""
+    locale = locale or load_locale("en")
     directory = MODULES_DIR / module.slug
     if not directory.is_dir():
         raise BuildError(f"README links a missing module: {directory}")
-    readme = (directory / "README.md").read_text(encoding="utf-8")
-    estimate = re.search(r"Estimated time:\s*\*\*(.+?)\*\*", readme)
+    english = (directory / "README.md").read_text(encoding="utf-8")
+    readme = locale.text(f"modules/{module.slug}/README.md", english) or english
+    estimate = re.search(r"(?:Estimated time|Tempo estimado):\s*\*\*(.+?)\*\*", readme)
     module.time = estimate[1] if estimate else ""
     module.has_exercises = (directory / "exercises" / "README.md").exists()
 
@@ -194,7 +324,11 @@ def load_module(module: Module) -> None:
     }
     for source in sorted((directory / "notebooks").glob("*.ipynb")):
         notebook = nbformat.read(source, as_version=4)
-        heading = re.match(r"#\s+(.+)", notebook.cells[0].source)
+        first = notebook.cells[0].source
+        translation = locale.notebook(module.slug, source.stem)
+        if translation:
+            first = translation.cells.get(source_key(first), first)
+        heading = re.match(r"#\s+(.+)", first)
         if not heading:
             raise BuildError(f"{source} does not start with a title heading")
         number, _, title = heading[1].partition(" · ")
@@ -207,6 +341,7 @@ def load_module(module: Module) -> None:
                 title=title or number,
                 description=re.sub(r"[*`]", "", description),
                 time="" if time in {"—", "-"} else time,
+                prefix=module.prefix,
             )
         )
 
@@ -217,9 +352,10 @@ def load_module(module: Module) -> None:
 class LinkMap:
     """Translates repository links into site links, recording assets to copy."""
 
-    def __init__(self, modules: list[Module]) -> None:
-        self.pages: dict[Path, str] = {REPO_ROOT / "README.md": "index.html"}
-        self.assets: set[Path] = set()
+    def __init__(self, modules: list[Module], prefix: str = "") -> None:
+        self.prefix = prefix
+        self.pages: dict[Path, str] = {REPO_ROOT / "README.md": f"{prefix}index.html"}
+        self.assets: dict[str, Path] = {}  # published path -> file to copy
         for module in modules:
             directory = MODULES_DIR / module.slug
             self.pages[directory] = module.path
@@ -245,8 +381,12 @@ class LinkMap:
         except ValueError as err:
             raise BuildError(f"link {url!r} leaves the repository") from err
         if in_repo.parts[0] == "assets":
-            self.assets.add(in_repo)
-            return self.relative(in_repo.as_posix(), page) + suffix
+            published, source = in_repo.as_posix(), resolved
+            localized = I18N_DIR / self.prefix / "images" / resolved.name
+            if self.prefix and localized.exists():
+                published, source = self.prefix + published, localized
+            self.assets[published] = source
+            return self.relative(published, page) + suffix
         return f"{GITHUB_URL}/blob/main/{in_repo.as_posix()}{suffix}"
 
     @staticmethod
@@ -279,7 +419,7 @@ def highlight_code(code: str, language: str = "", _attrs: str = "") -> str:
     return highlight(code, lexer, FORMATTER)
 
 
-def apply_callouts(tokens: list[Token]) -> list[Token]:
+def apply_callouts(tokens: list[Token], titles: dict[str, str]) -> list[Token]:
     """Turn GitHub `> [!NOTE]` blockquotes into titled callouts."""
     result: list[Token] = []
     for index, token in enumerate(tokens):
@@ -299,7 +439,7 @@ def apply_callouts(tokens: list[Token]) -> list[Token]:
         kind = match[1].lower()
         token.attrSet("class", f"callout callout-{kind}")
         title = Token("html_block", "", 0)
-        title.content = f'<p class="callout-title">{kind.capitalize()}</p>\n'
+        title.content = f'<p class="callout-title">{titles[kind]}</p>\n'
         result.append(title)
     return result
 
@@ -307,7 +447,7 @@ def apply_callouts(tokens: list[Token]) -> list[Token]:
 def site_core_rule(state) -> None:
     """Rewrite links, give headings ids, and collect the TOC and search text."""
     env = state.env
-    state.tokens = apply_callouts(state.tokens)
+    state.tokens = apply_callouts(state.tokens, env["callouts"])
     links: LinkMap = env["links"]
     rewrite = functools.partial(
         links.rewrite, source_dir=env["source_dir"], page=env["page"]
@@ -378,9 +518,13 @@ def make_markdown() -> MarkdownIt:
 MARKDOWN = make_markdown()
 
 
-def new_env(links: LinkMap, source_dir: Path, page: str, title: str) -> dict:
+def new_env(
+    links: LinkMap, source_dir: Path, page: str, title: str, ui: dict | None = None
+) -> dict:
     """Per-page render state, shared by every markdown cell of a notebook."""
+    ui = ui or load_locale("en").ui
     return {
+        "callouts": ui["callouts"],
         "links": links,
         "source_dir": source_dir,
         "page": page,
@@ -393,7 +537,9 @@ def new_env(links: LinkMap, source_dir: Path, page: str, title: str) -> dict:
 def strip_title(markdown: str) -> str:
     """Drop the leading `# Title` block; the page header already shows it."""
     markdown = re.sub(r"^\s*#\s+.*\n?", "", markdown, count=1)
-    markdown = re.sub(r"^\s*\*\*Module \d+[^\n]*\*\*\s*\n?", "", markdown, count=1)
+    markdown = re.sub(
+        r"^\s*\*\*M(?:odule|ódulo) \d+[^\n]*\*\*\s*\n?", "", markdown, count=1
+    )
     return re.sub(r"^\s*---\s*\n", "", markdown, count=1)
 
 
@@ -412,7 +558,9 @@ def join_source(value: str | list[str]) -> str:
     return value if isinstance(value, str) else "".join(value)
 
 
-def render_output(output, figure_dir: Path, lesson: Lesson, figures: list[int]) -> str:
+def render_output(
+    output, figure_dir: Path, lesson: Lesson, figures: list[int], ui: dict
+) -> str:
     """Render one cell output as HTML, writing any figure next to the page."""
     kind = output.output_type
     if kind == "stream":
@@ -431,10 +579,13 @@ def render_output(output, figure_dir: Path, lesson: Lesson, figures: list[int]) 
         figure_dir.mkdir(parents=True, exist_ok=True)
         (figure_dir / name).write_bytes(raw)
         width, height = png_size(raw)
+        src = LinkMap.relative(
+            f"modules/{lesson.module_slug}/figures/{name}", lesson.path
+        )
         return (
-            f'<img class="output-figure" src="figures/{name}" width="{width}" '
+            f'<img class="output-figure" src="{src}" width="{width}" '
             f'height="{height}" loading="lazy" '
-            'alt="Figure produced by the code cell above">'
+            f'alt="{html.escape(ui["figure_alt"])}">'
         )
     if "text/html" in data:
         markup = PANDAS_STYLE_RE.sub("", join_source(data["text/html"]))
@@ -447,17 +598,28 @@ def render_output(output, figure_dir: Path, lesson: Lesson, figures: list[int]) 
 
 
 def render_notebook(
-    lesson: Lesson, links: LinkMap, output_dir: Path
+    lesson: Lesson, links: LinkMap, output_dir: Path, locale: Locale | None = None
 ) -> tuple[str, dict]:
     """Render a notebook's cells to HTML, returning it with the render state."""
+    locale = locale or load_locale("en")
+    ui = locale.ui
     notebook = nbformat.read(lesson.source, as_version=4)
-    env = new_env(links, lesson.source.parent, lesson.path, lesson.title)
+    translation = locale.notebook(lesson.module_slug, lesson.stem)
+    label = f"modules/{lesson.module_slug}/{lesson.stem}"
+    env = new_env(links, lesson.source.parent, lesson.path, lesson.title, ui)
     figure_dir = output_dir / "modules" / lesson.module_slug / "figures"
     figures = [0]
     parts: list[str] = []
     for index, cell in enumerate(notebook.cells):
         if cell.cell_type == "markdown":
-            source = strip_title(cell.source) if index == 0 else cell.source
+            source = cell.source
+            if translation is not None and source.strip():
+                key = source_key(source)
+                if key in translation.cells:
+                    source = translation.cells[key]
+                else:
+                    locale.missing.append(f"{label}: cell {index} ({key})")
+            source = strip_title(source) if index == 0 else source
             parts.append(MARKDOWN.render(source, env))
         elif cell.cell_type == "code" and cell.source.strip():
             if not cell.get("execution_count"):
@@ -465,25 +627,60 @@ def render_notebook(
                     f"{lesson.source.name}: a code cell was never executed; "
                     "run scripts/build_notebooks.py first"
                 )
-            env["sections"][-1]["text"].append(cell.source)
-            code = highlight(cell.source, PythonLexer(), FORMATTER)
+            shown = cell.source
+            if translation is not None:
+                shown, untranslated = translate_comments(shown, translation.comments)
+                locale.missing += [
+                    f"{label}: comment {comment!r}" for comment in untranslated
+                ]
+            env["sections"][-1]["text"].append(shown)
+            code = highlight(shown, PythonLexer(), FORMATTER)
             outputs = "".join(
-                render_output(output, figure_dir, lesson, figures)
+                render_output(output, figure_dir, lesson, figures, ui)
                 for output in cell.outputs
             )
             output_block = (
-                '<div class="cell-output"><span class="cell-label">Output</span>'
-                f"{outputs}</div>"
+                f'<div class="cell-output"><span class="cell-label">{ui["output"]}'
+                f"</span>{outputs}</div>"
                 if outputs
                 else ""
             )
             parts.append(
                 '<div class="cell"><div class="cell-input">'
-                '<button class="copy" type="button">Copy</button>'
+                f'<button class="copy" type="button">{ui["copy"]}</button>'
                 f'<pre class="code" tabindex="0"><code>{code}</code></pre></div>'
                 f"{output_block}</div>"
             )
     return "\n".join(parts), env
+
+
+def write_skeletons(directory: Path) -> int:
+    """Write the English prose and comments of each notebook, ready to translate."""
+    count = 0
+    for source in sorted(MODULES_DIR.glob("*/notebooks/*.ipynb")):
+        notebook = nbformat.read(source, as_version=4)
+        chunks = []
+        comments: dict[str, None] = {}
+        for cell in notebook.cells:
+            if cell.cell_type == "markdown" and cell.source.strip():
+                chunks.append(f"<!-- en:{source_key(cell.source)} -->\n{cell.source}\n")
+            elif cell.cell_type == "code":
+                try:
+                    tokens = tokenize.generate_tokens(io.StringIO(cell.source).readline)
+                    comments.update(
+                        (token.string, None)
+                        for token in tokens
+                        if token.type == tokenize.COMMENT
+                    )
+                except (tokenize.TokenError, IndentationError, SyntaxError):
+                    pass
+        chunks.append(COMMENTS_MARK)
+        chunks += [f"EN: {comment}\nPT: {comment}" for comment in comments]
+        target = directory / source.parent.parent.name / f"{source.stem}.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("\n".join(chunks) + "\n", encoding="utf-8")
+        count += 1
+    return count
 
 
 # ---------------------------------------------------------------------------
@@ -501,9 +698,9 @@ def readme_sections(readme: str, names: list[str]) -> str:
     return "\n\n".join(parts)
 
 
-def parse_philosophy(readme: str) -> list[dict[str, str]]:
+def parse_philosophy(readme: str, heading: str = "Philosophy") -> list[dict[str, str]]:
     """Read the rules from the README's Philosophy table."""
-    section = readme_sections(readme, ["Philosophy"])
+    section = readme_sections(readme, [heading])
     rules = re.findall(
         r"^\|\s*\*\*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*$", section, re.MULTILINE
     )
@@ -558,16 +755,177 @@ def verify_links(output_dir: Path) -> list[str]:
     return problems
 
 
-def build(output_dir: Path = OUTPUT_DIR) -> dict[str, int]:
-    """Generate the whole site into `output_dir`, replacing what was there."""
-    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    parts = parse_curriculum(readme)
+def build_locale(locale: Locale, output_dir: Path, templates) -> dict[str, Path]:
+    """Generate one language's pages; returns the assets they use."""
+    ui = locale.ui
+    prefix = locale.prefix
+    english_readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    readme = locale.text("README.md", english_readme)
+    if readme is None:
+        raise BuildError(f"{locale.code}: the root README has no translation")
+    parts = parse_curriculum(readme, prefix)
     modules = [module for part in parts for module in part.modules]
     ready = [module for module in modules if module.ready]
     for module in ready:
-        load_module(module)
-    links = LinkMap(ready)
+        load_module(module, locale)
+    links = LinkMap(ready, prefix)
+    search_file = (
+        "search-index.js" if locale.code == "en" else f"search-index.{locale.code}.js"
+    )
+    shared = {
+        "t": ui,
+        "locale": locale,
+        "parts": parts,
+        "ready_modules": ready,
+        "github_url": GITHUB_URL,
+        "total_modules": len(modules),
+        "total_lessons": sum(len(module.lessons) for module in ready),
+        "search_file": f"static/{search_file}",
+        "js_strings": {key: ui[key] for key in ui["js_keys"]},
+    }
+    search: list[dict] = []
 
+    def write(page: str, template: str, **context) -> None:
+        body = context.get("body", "")
+        base_page = page.removeprefix(prefix)
+        relative = functools.partial(LinkMap.relative, page=page)
+        rendered = templates.get_template(template).render(
+            **shared,
+            **context,
+            page=page,
+            base_page=base_page,
+            root=relative(".") + "/",
+            locale_root=relative(prefix or ".") + "/",
+            en_url=relative(base_page),
+            pt_url=relative(f"pt/{base_page}"),
+            has_math='class="tex"' in body,
+            url=relative,
+            lurl=lambda target: relative(prefix + target),
+        )
+        destination = output_dir / page
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(rendered, encoding="utf-8")
+
+    def neighbours(module: Module, page: str) -> tuple:
+        order = module.reading_order(ui)
+        position = [path for path, _ in order].index(page)
+        previous = order[position - 1] if position else None
+        following = order[position + 1] if position + 1 < len(order) else None
+        if following is None:
+            later = ready[ready.index(module) + 1 :]
+            if later:
+                following = (
+                    later[0].path,
+                    f"{ui['module']} {later[0].number}: {later[0].title}",
+                )
+        return previous, following
+
+    def markdown_page(
+        module: Module, source: Path, relative: str, page: str, title: str, eyebrow: str
+    ) -> None:
+        """Render a README-style page that belongs to a module."""
+        nonlocal search
+        env = new_env(links, source.parent, page, title, ui)
+        english = source.read_text(encoding="utf-8")
+        translated = locale.text(relative, english)
+        text = english if translated is None else translated
+        body = MARKDOWN.render(re.sub(r"^\s*#\s+.*\n", "", text, count=1), env)
+        search += search_entries(env, page, title, f"{ui['module']} {module.number}")
+        previous, following = neighbours(module, page)
+        write(
+            page,
+            "page.html",
+            title=title,
+            eyebrow=eyebrow,
+            body=body,
+            toc=env["toc"],
+            module=module,
+            previous=previous,
+            following=following,
+            untranslated=translated is None,
+        )
+
+    for module in ready:
+        directory = MODULES_DIR / module.slug
+        group = f"{ui['module']} {module.number}"
+        markdown_page(
+            module,
+            directory / "README.md",
+            f"modules/{module.slug}/README.md",
+            module.path,
+            module.title,
+            group,
+        )
+        if module.has_exercises:
+            markdown_page(
+                module,
+                directory / "exercises" / "README.md",
+                f"modules/{module.slug}/exercises.md",
+                module.exercises_path,
+                ui["exercises"],
+                f"{group}: {module.title}",
+            )
+        for lesson in module.lessons:
+            body, env = render_notebook(lesson, links, output_dir, locale)
+            search += search_entries(env, lesson.path, lesson.title, group)
+            previous, following = neighbours(module, lesson.path)
+            write(
+                lesson.path,
+                "page.html",
+                title=lesson.title,
+                eyebrow=f"{group} · {ui['lesson']} {lesson.number}",
+                body=body,
+                toc=env["toc"],
+                module=module,
+                lesson=lesson,
+                previous=previous,
+                following=following,
+            )
+
+    # Getting started, from the root README.
+    guide_page = f"{prefix}getting-started.html"
+    env = new_env(links, REPO_ROOT, guide_page, ui["getting_started"], ui)
+    guide = readme_sections(readme, ui["guide_sections"])
+    body = MARKDOWN.render(guide, env)
+    search += search_entries(env, guide_page, ui["getting_started"], ui["guide"])
+    write(
+        guide_page,
+        "page.html",
+        title=ui["getting_started"],
+        eyebrow=ui["guide"],
+        body=body,
+        toc=env["toc"],
+    )
+
+    # Home.
+    home_page = f"{prefix}index.html"
+    intro = re.search(r"^# [^\n]+\n\n(.+?)\n\n", readme, re.MULTILINE | re.DOTALL)
+    stack_map = links.rewrite(
+        "assets/images/course_stack_map.png", REPO_ROOT, home_page
+    )
+    write(
+        home_page,
+        "home.html",
+        title=ui["course_title"],
+        intro=" ".join(intro[1].split()).replace("*", "") if intro else "",
+        philosophy=parse_philosophy(readme, ui["philosophy_section"]),
+        stack_map=stack_map,
+        lesson_titles={
+            lesson.base_path: lesson.title
+            for module in ready
+            for lesson in module.lessons
+        },
+    )
+
+    payload = json.dumps(search, ensure_ascii=False, separators=(",", ":"))
+    (output_dir / "static" / search_file).write_text(
+        f"window.SEARCH_INDEX={payload};", encoding="utf-8"
+    )
+    return links.assets
+
+
+def build(output_dir: Path = OUTPUT_DIR) -> dict:
+    """Generate the whole site into `output_dir`, replacing what was there."""
     resolved_output = output_dir.resolve()
     if resolved_output in {REPO_ROOT, Path.home(), Path("/")}:
         raise BuildError(f"refusing to replace {resolved_output}")
@@ -582,142 +940,26 @@ def build(output_dir: Path = OUTPUT_DIR) -> dict[str, int]:
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    shared = {
-        "parts": parts,
-        "ready_modules": ready,
-        "github_url": GITHUB_URL,
-        "total_modules": len(modules),
-        "total_lessons": sum(len(module.lessons) for module in ready),
-    }
-    search: list[dict] = []
+    missing: list[str] = []
+    assets: dict[str, Path] = {}
+    for code in LOCALE_CODES:
+        locale = load_locale(code)
+        assets.update(build_locale(locale, output_dir, templates))
+        missing += [f"[{code}] {item}" for item in locale.missing]
 
-    def write(page: str, template: str, **context) -> None:
-        body = context.get("body", "")
-        rendered = templates.get_template(template).render(
-            **shared,
-            **context,
-            page=page,
-            root=LinkMap.relative(".", page) + "/",
-            has_math='class="tex"' in body,
-            url=lambda target: LinkMap.relative(target, page),
-        )
-        destination = output_dir / page
+    for published, source in assets.items():
+        destination = output_dir / published
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(rendered, encoding="utf-8")
-
-    def neighbours(module: Module, page: str) -> tuple:
-        order = module.reading_order()
-        position = [path for path, _ in order].index(page)
-        previous = order[position - 1] if position else None
-        following = order[position + 1] if position + 1 < len(order) else None
-        if following is None:
-            later = ready[ready.index(module) + 1 :]
-            if later:
-                following = (
-                    later[0].path,
-                    f"Module {later[0].number}: {later[0].title}",
-                )
-        return previous, following
-
-    def markdown_page(
-        module: Module, source: Path, page: str, title: str, eyebrow: str
-    ) -> None:
-        """Render a README-style page that belongs to a module."""
-        nonlocal search
-        env = new_env(links, source.parent, page, title)
-        text = source.read_text(encoding="utf-8")
-        body = MARKDOWN.render(re.sub(r"^\s*#\s+.*\n", "", text, count=1), env)
-        search += search_entries(env, page, title, f"Module {module.number}")
-        previous, following = neighbours(module, page)
-        write(
-            page,
-            "page.html",
-            title=title,
-            eyebrow=eyebrow,
-            body=body,
-            toc=env["toc"],
-            module=module,
-            previous=previous,
-            following=following,
-        )
-
-    for module in ready:
-        directory = MODULES_DIR / module.slug
-        group = f"Module {module.number}"
-        markdown_page(module, directory / "README.md", module.path, module.title, group)
-        if module.has_exercises:
-            markdown_page(
-                module,
-                directory / "exercises" / "README.md",
-                module.exercises_path,
-                "Exercises",
-                f"{group}: {module.title}",
-            )
-        for lesson in module.lessons:
-            body, env = render_notebook(lesson, links, output_dir)
-            search += search_entries(env, lesson.path, lesson.title, group)
-            previous, following = neighbours(module, lesson.path)
-            write(
-                lesson.path,
-                "page.html",
-                title=lesson.title,
-                eyebrow=f"{group} · Lesson {lesson.number}",
-                body=body,
-                toc=env["toc"],
-                module=module,
-                lesson=lesson,
-                previous=previous,
-                following=following,
-            )
-
-    # Getting started, from the root README.
-    guide_page = "getting-started.html"
-    env = new_env(links, REPO_ROOT, guide_page, "Getting started")
-    guide = readme_sections(
-        readme, ["Getting Started", "How to Study", "Repository Layout", "Conventions"]
-    )
-    body = MARKDOWN.render(guide, env)
-    search += search_entries(env, guide_page, "Getting started", "Guide")
-    write(
-        guide_page,
-        "page.html",
-        title="Getting started",
-        eyebrow="Guide",
-        body=body,
-        toc=env["toc"],
-    )
-
-    # Home.
-    intro = re.search(r"^# [^\n]+\n\n(.+?)\n\n", readme, re.MULTILINE | re.DOTALL)
-    stack_map = links.rewrite(
-        "assets/images/course_stack_map.png", REPO_ROOT, "index.html"
-    )
-    write(
-        "index.html",
-        "home.html",
-        title="Full-Stack Data Science with Python",
-        intro=" ".join(intro[1].split()).replace("*", "") if intro else "",
-        philosophy=parse_philosophy(readme),
-        stack_map=stack_map,
-    )
-
-    for asset in links.assets:
-        destination = output_dir / asset
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPO_ROOT / asset, destination)
-
-    payload = json.dumps(search, ensure_ascii=False, separators=(",", ":"))
-    (output_dir / "static" / "search-index.js").write_text(
-        f"window.SEARCH_INDEX={payload};", encoding="utf-8"
-    )
+        shutil.copy2(source, destination)
 
     problems = verify_links(output_dir)
     if problems:
         raise BuildError("broken links:\n  " + "\n  ".join(problems))
     return {
-        "modules": len(ready),
-        "lessons": shared["total_lessons"],
+        "modules": sum(1 for _ in MODULES_DIR.glob("*/notebooks")),
+        "lessons": sum(1 for _ in MODULES_DIR.glob("*/notebooks/*.ipynb")),
         "pages": sum(1 for _ in output_dir.rglob("*.html")),
+        "missing": missing,
     }
 
 
@@ -739,7 +981,16 @@ def main() -> int:
         "--serve", action="store_true", help="serve the site after building"
     )
     parser.add_argument("--port", type=int, default=8000, help="port for --serve")
+    parser.add_argument(
+        "--i18n-skeleton",
+        type=Path,
+        metavar="DIR",
+        help="write English text to translate into DIR, then exit",
+    )
     args = parser.parse_args()
+    if args.i18n_skeleton:
+        print(f"Wrote {write_skeletons(args.i18n_skeleton)} files")
+        return 0
     try:
         stats = build()
     except BuildError as err:
@@ -749,6 +1000,10 @@ def main() -> int:
         f"Built {stats['pages']} pages ({stats['modules']} modules, "
         f"{stats['lessons']} lessons) in {OUTPUT_DIR}"
     )
+    if stats["missing"]:
+        print(f"Translation gaps: {len(stats['missing'])}")
+        for item in stats["missing"][:40]:
+            print(f"  {item}")
     if args.serve:
         serve(OUTPUT_DIR, args.port)
     return 0
