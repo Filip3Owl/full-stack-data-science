@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/images/readme_banner.svg" alt="Full-Stack Data Science, in yellow 8-bit letters on a gray pixel frame" width="820">
+</p>
+
 # Full-Stack Data Science with Python
 
 A complete, hands-on course that takes you from the Python language itself all the
@@ -117,9 +121,11 @@ This course covers all of them:
 
 ## Web Version
 
-The whole course can be read in a browser: lessons with their executed outputs,
-search, dark mode, and progress saved in your browser. The site is generated
-from the notebooks and READMEs, so there is nothing extra to keep in sync.
+The whole course can be read in a browser, in English or Brazilian Portuguese:
+lessons with their executed outputs, search, dark mode, and progress saved in
+your browser. The English site is generated from the notebooks and READMEs, so
+there is nothing extra to keep in sync. The Portuguese text lives only in
+`web/i18n/pt/`; the build reports anything that fell out of date.
 
 ```bash
 uv pip install --python .venv/bin/python -e ".[web]"
@@ -241,7 +247,7 @@ full-stack-data-science/
 │   └── 02-numpy-numerical-computing/
 │       └── …                   ← same layout, one directory per module
 │
-├── web/                        ← templates and styles of the web version
+├── web/                        ← templates, styles and translations of the web version
 ├── src/dstoolkit/              ← reusable helper package importable everywhere
 ├── scripts/                    ← project-level utilities
 └── tests/                      ← pytest suite for src/

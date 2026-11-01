@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block body_class %}page-doc{% endblock %}
 {% block tab_lessons %}
-<button class="tab nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+<button class="tab nav-toggle" type="button" aria-label="{{ t.open_nav }}" aria-expanded="false" aria-controls="sidebar">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
-  <span>Lessons</span>
+  <span>{{ t.tab_lessons }}</span>
 </button>
 {% endblock %}
 {% macro lesson_link(entry) %}
@@ -16,9 +16,9 @@
 {% endmacro %}
 {% block layout %}
 <div class="shell">
-  <nav class="sidebar" id="sidebar" aria-label="Course">
-    <a class="sidebar-home" href="{{ url('index.html') }}">← All modules</a>
-    <a class="sidebar-link{% if page == 'getting-started.html' %} is-current{% endif %}" href="{{ url('getting-started.html') }}"{% if page == 'getting-started.html' %} aria-current="page"{% endif %}>Getting started</a>
+  <nav class="sidebar" id="sidebar" aria-label="{{ t.sidebar_label }}">
+    <a class="sidebar-home" href="{{ lurl('index.html') }}">← {{ t.all_modules }}</a>
+    <a class="sidebar-link{% if base_page == 'getting-started.html' %} is-current{% endif %}" href="{{ lurl('getting-started.html') }}"{% if base_page == 'getting-started.html' %} aria-current="page"{% endif %}>{{ t.getting_started }}</a>
     {% for item in ready_modules %}
     <details class="sidebar-module"{% if module is defined and module.number == item.number %} open{% endif %}>
       <summary>
@@ -26,12 +26,12 @@
         <span>{{ item.title }}</span>
       </summary>
       <ul>
-        <li><a class="sidebar-link{% if page == item.path %} is-current{% endif %}" href="{{ url(item.path) }}"{% if page == item.path %} aria-current="page"{% endif %}>Overview</a></li>
+        <li><a class="sidebar-link{% if page == item.path %} is-current{% endif %}" href="{{ url(item.path) }}"{% if page == item.path %} aria-current="page"{% endif %}>{{ t.overview }}</a></li>
         {% for entry in item.lessons if entry.kind != 'solutions' %}
         {{ lesson_link(entry) }}
         {% endfor %}
         {% if item.has_exercises %}
-        <li><a class="sidebar-link{% if page == item.exercises_path %} is-current{% endif %}" href="{{ url(item.exercises_path) }}"{% if page == item.exercises_path %} aria-current="page"{% endif %}>Exercises</a></li>
+        <li><a class="sidebar-link{% if page == item.exercises_path %} is-current{% endif %}" href="{{ url(item.exercises_path) }}"{% if page == item.exercises_path %} aria-current="page"{% endif %}>{{ t.exercises }}</a></li>
         {% endif %}
         {% for entry in item.lessons if entry.kind == 'solutions' %}
         {{ lesson_link(entry) }}
@@ -42,7 +42,7 @@
   </nav>
   <div class="nav-scrim" hidden></div>
 
-  <main class="doc" id="content"{% if lesson is defined %} data-lesson-id="{{ lesson.lesson_id }}" data-lesson-title="{{ lesson.title }}" data-lesson-path="{{ lesson.path }}"{% endif %}>
+  <main class="doc" id="content"{% if lesson is defined %} data-lesson-id="{{ lesson.lesson_id }}" data-lesson-title="{{ lesson.title }}" data-lesson-path="{{ lesson.base_path }}"{% endif %}>
     <header class="doc-header">
       <p class="eyebrow">{{ eyebrow }}</p>
       <h1>{{ title }}</h1>
@@ -53,7 +53,10 @@
       </p>
       {% endif %}
       {% if lesson is defined and lesson.kind == 'solutions' %}
-      <p class="spoiler-note">Worked solutions. Try the <a href="{{ url(module.exercises_path) }}">exercises</a> first.</p>
+      <p class="spoiler-note">{{ t.spoiler_before }} <a href="{{ url(module.exercises_path) }}">{{ t.spoiler_link }}</a> {{ t.spoiler_after }}</p>
+      {% endif %}
+      {% if untranslated is defined and untranslated %}
+      <p class="spoiler-note">{{ t.not_translated }}</p>
       {% endif %}
     </header>
 
@@ -64,27 +67,27 @@
     {% if lesson is defined %}
     <div class="complete-row">
       <button class="complete-button" type="button" role="switch" aria-checked="false">
-        <span class="complete-label">Mark lesson as complete</span>
+        <span class="complete-label">{{ t.mark_complete }}</span>
         <span class="switch" aria-hidden="true"></span>
       </button>
     </div>
     {% endif %}
 
     {% if previous or following %}
-    <nav class="pager" aria-label="Lesson order">
+    <nav class="pager" aria-label="{{ t.pager_label }}">
       {% if previous %}
-      <a class="pager-link" href="{{ url(previous[0]) }}"><small>Previous</small><span>{{ previous[1] }}</span></a>
+      <a class="pager-link" href="{{ url(previous[0]) }}"><small>{{ t.previous }}</small><span>{{ previous[1] }}</span></a>
       {% else %}<span></span>{% endif %}
       {% if following %}
-      <a class="pager-link pager-next" href="{{ url(following[0]) }}"><small>Next</small><span>{{ following[1] }}</span></a>
+      <a class="pager-link pager-next" href="{{ url(following[0]) }}"><small>{{ t.next }}</small><span>{{ following[1] }}</span></a>
       {% endif %}
     </nav>
     {% endif %}
   </main>
 
   {% if toc %}
-  <aside class="toc" aria-label="On this page">
-    <p class="toc-title">On this page</p>
+  <aside class="toc" aria-label="{{ t.on_this_page }}">
+    <p class="toc-title">{{ t.on_this_page }}</p>
     <ul>
       {% for item in toc %}
       <li class="toc-level-{{ item.level }}"><a href="#{{ item.id }}">{{ item.text }}</a></li>

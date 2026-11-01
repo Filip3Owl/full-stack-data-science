@@ -216,6 +216,20 @@ kbd {
 
 .topbar-links { display: flex; gap: 18px; font-size: 15px; white-space: nowrap; }
 
+.lang-switch { display: flex; flex: none; padding: 2px; background: var(--fill); border-radius: 9px; }
+.lang-switch a {
+  min-width: 34px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+}
+.lang-switch a:hover { text-decoration: none; }
+.lang-switch a[aria-current] { background: var(--card); box-shadow: 0 1px 3px rgb(0 0 0 / .18); }
+
 .tabbar {
   position: fixed;
   right: 0;
@@ -750,8 +764,9 @@ li + li .module-main { border-top: .5px solid var(--sep); }
 }
 
 @media (max-width: 900px) {
-  .topbar { justify-content: center; }
   .topbar .search-open, .topbar .topbar-links, .topbar .theme-toggle { display: none; }
+  .topbar .lang-switch { position: absolute; right: 10px; }
+  .topbar { justify-content: flex-start; }
   .tabbar { display: grid; }
   body { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
 
